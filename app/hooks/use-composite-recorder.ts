@@ -16,6 +16,15 @@ const MIME_FALLBACK = [
   "",
 ];
 
+function safeSupported(mime: string) {
+  if (mime === "") return true;
+  try {
+    return MediaRecorder.isTypeSupported(mime);
+  } catch {
+    return false;
+  }
+}
+
 interface CompositeRecorderArgs {
   screenVideo: HTMLVideoElement | null;
   cameraVideo: HTMLVideoElement | null;
@@ -33,6 +42,14 @@ interface ActiveRecording {
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
+}
+
+function isVideoLive(video: HTMLVideoElement | null): video is HTMLVideoElement {
+  if (!video) return false;
+  const stream = video.srcObject as MediaStream | null;
+  const hasLiveTrack =
+    stream?.getVideoTracks().some((t) => t.readyState === "live") ?? false;
+  return hasLiveTrack && video.readyState >= 2;
 }
 
 function fileNameFor(date: Date) {
@@ -110,12 +127,12 @@ export function useCompositeRecorder({ screenVideo, cameraVideo, mirror }: Compo
       setError("Browser tidak mendukung perekaman video.");
       return;
     }
-    if (!screenVideo || !cameraVideo) {
+    if (!isVideoLive(screenVideo) || !isVideoLive(cameraVideo)) {
       setError("Aktifkan layar dan kamera dulu sebelum merekam.");
       return;
     }
-    const mime = MIME_FALLBACK.find((m) => MediaRecorder.isTypeSupported(m));
-    if (!mime && mime !== "") {
+    const mime = MIME_FALLBACK.find((m) => safeSupported(m));
+    if (mime === undefined) {
       setError("Browser tidak mendukung perekaman video.");
       return;
     }
