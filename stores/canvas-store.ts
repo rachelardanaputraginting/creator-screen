@@ -1,6 +1,8 @@
-import create from "zustand";
+import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Scene, Overlay, Source, SourceType } from "../types";
+import type { Scene } from "../types/scene";
+import type { Overlay } from "../types/overlay";
+import type { Source } from "../types/source";
 
 export type OverlayType = Overlay["type"];
 
@@ -48,14 +50,11 @@ export interface CanvasState {
   setIsSessionActive: (value: boolean) => void;
 
   // Background
-  background: BackgroundType;
-  setBackground: (type: BackgroundType) => void;
+  background: string;
+  setBackground: (type: string) => void;
 }
 
-export const useStore = create<
-  CanvasState &
-  PersistMiddleware<CanvasState>
->()(
+export const useStore = create<CanvasState>()(
   persist(
     (set) => ({
       // Source
@@ -93,7 +92,12 @@ export const useStore = create<
       // Scenes list
       scenes: [],
       setScenes: (scenes) => set({ scenes }),
-      addScene: (scene) => set((state) => ({ scenes: [...state.scenes, scene] })),
+      addScene: (scene) =>
+        set((state) =>
+          state.scenes.some((s) => s.id === scene.id)
+            ? state
+            : { scenes: [...state.scenes, scene] }
+        ),
       updateScene: (id, updates) =>
         set((state) => ({
           scenes: state.scenes.map((s) => (s.id === id ? { ...s, ...updates } : s)),
@@ -103,7 +107,20 @@ export const useStore = create<
         set((state) => ({
           scenes: state.scenes.map((s) => (s.id === id ? { ...s, name } : s)),
         })),
-      switchScene: (id) => set({ currentScene: state.scenes.find((s) => s.id === id) || null }),
+      switchScene: (id) =>
+        set((state) => {
+          const scene = state.scenes.find((s) => s.id === id);
+          if (!scene) return state;
+          return {
+            currentScene: scene,
+            source: scene.source,
+            overlays: scene.overlays,
+            background: scene.background,
+            canvasWidth: scene.canvasWidth,
+            canvasHeight: scene.canvasHeight,
+            selectedOverlayId: null,
+          };
+        }),
 
       // Fullscreen
       isFullscreen: false,
@@ -114,14 +131,12 @@ export const useStore = create<
       setIsSessionActive: (value) => set({ isSessionActive: value }),
 
       // Background
-      background: BackgroundType.Solid,
+      background: "solid",
       setBackground: (type) => set({ background: type }),
     }),
     {
       name: "creator-screen-storage",
-      storage: createJSONStorage(localStorage),
+      storage: createJSONStorage(() => localStorage),
     }
   )
 );
-
-type PersistMiddleware = any;

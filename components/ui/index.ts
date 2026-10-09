@@ -15,4 +15,3 @@ export * from "./progress";
 export * from "./command";
 export * from "./alert-dialog";
 export * from "./toast";
-export * from "./sonner";
