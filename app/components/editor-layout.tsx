@@ -33,12 +33,15 @@ import {
 } from "@/components/ui/alert";
 import AboutPanel from "./about-panel";
 import TechMarquee from "./tech-marquee";
+import ThemeToggle from "./theme-toggle";
 import { useCompositeRecorder } from "@/app/hooks/use-composite-recorder";
 import {
     MonitorUp,
     MonitorOff,
     Camera,
     CameraOff,
+    Mic,
+    MicOff,
     Maximize,
     Minimize,
     Play,
@@ -116,6 +119,8 @@ export default function EditorLayout() {
     const [recordNotice, setRecordNotice] = useState<string | null>(null);
     const [screenOn, setScreenOn] = useState(false);
     const [cameraOn, setCameraOn] = useState(false);
+    const [micOn, setMicOn] = useState(false);
+    const [micStream, setMicStream] = useState<MediaStream | null>(null);
     const [mirror, setMirror] = useState(true);
     const [screenVideoEl, setScreenVideoEl] = useState<HTMLVideoElement | null>(
         null,
@@ -127,6 +132,7 @@ export default function EditorLayout() {
     const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
     const screenStreamRef = useRef<MediaStream | null>(null);
     const cameraStreamRef = useRef<MediaStream | null>(null);
+    const micStreamRef = useRef<MediaStream | null>(null);
     const initializedRef = useRef(false);
 
     useEffect(() => {
@@ -272,6 +278,7 @@ export default function EditorLayout() {
         () => () => {
             screenStreamRef.current?.getTracks().forEach((t) => t.stop());
             cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+            micStreamRef.current?.getTracks().forEach((t) => t.stop());
         },
         [],
     );
@@ -340,6 +347,47 @@ export default function EditorLayout() {
         stopCameraTracks();
     }, [stopCameraTracks]);
 
+    const stopMicTracks = useCallback(() => {
+        if (statusRef.current === "recording") {
+            recorder.stop();
+            setRecordNotice(
+                "Mic berhenti — rekaman parsial tersimpan, silakan download.",
+            );
+        }
+        micStreamRef.current?.getTracks().forEach((t) => t.stop());
+        micStreamRef.current = null;
+        setMicStream(null);
+        setMicOn(false);
+    }, [recorder]);
+
+    const handleEnableMic = useCallback(async () => {
+        setMediaError(null);
+        try {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setMediaError("Microphone is not supported in this browser.");
+                return;
+            }
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: true,
+            });
+            micStreamRef.current = stream;
+            setMicStream(stream);
+            setMicOn(true);
+            stream.getAudioTracks()[0]?.addEventListener("ended", () => {
+                stopMicTracks();
+            });
+        } catch {
+            setMediaError(
+                "Unable to access the microphone. Check your system permissions and try again.",
+            );
+        }
+    }, [stopMicTracks]);
+
+    const handleStopMic = useCallback(() => {
+        stopMicTracks();
+    }, [stopMicTracks]);
+
     const handleStartSession = useCallback(() => {
         setIsSessionActive(true);
         void enterFullscreen();
@@ -398,7 +446,7 @@ export default function EditorLayout() {
     const cameraCard = (
         <Card size="sm">
             <CardHeader>
-                <CardTitle>Kamera saya</CardTitle>
+                <CardTitle>Kamera & Mic</CardTitle>
                 <CardDescription>
                     {cameraOn ? "Live preview" : "Belum aktif"}
                 </CardDescription>
@@ -459,6 +507,28 @@ export default function EditorLayout() {
                         onCheckedChange={setMirror}
                     />
                 </div>
+                <div className="flex items-center justify-between gap-2">
+                    <Badge variant={micOn ? "secondary" : "outline"}>
+                        {micOn ? "Mic on" : "Mic off"}
+                    </Badge>
+                    {micOn ? (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleStopMic}
+                        >
+                            <MicOff /> Matikan mic
+                        </Button>
+                    ) : (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleEnableMic()}
+                        >
+                            <Mic /> Aktifkan mic
+                        </Button>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
@@ -478,7 +548,10 @@ export default function EditorLayout() {
                         <Badge variant="destructive">Session active</Badge>
                     </div>
                 )}
-                <div className="min-w-0 flex-1 p-4">{screenPreview}</div>
+                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                    {screenPreview}
+                    <TechMarquee />
+                </div>
                 <Separator orientation="vertical" />
                 <div className="flex w-[280px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
                     <AboutPanel />
@@ -509,6 +582,7 @@ export default function EditorLayout() {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <ThemeToggle />
                     <Button
                         size="sm"
                         variant="outline"
