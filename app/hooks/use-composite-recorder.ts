@@ -39,9 +39,14 @@ interface ActiveRecording {
     raf: number;
     timer: ReturnType<typeof setInterval>;
     stream: MediaStream;
+    canvasStream: MediaStream;
     recorder: MediaRecorder;
     chunks: Blob[];
     startedAt: number;
+}
+
+function stopCanvasTracks(rec: ActiveRecording) {
+    rec.canvasStream.getVideoTracks().forEach((t) => t.stop());
 }
 
 function pad(n: number) {
@@ -226,7 +231,7 @@ export function useCompositeRecorder({
         } catch {
             /* already stopped */
         }
-        rec.stream.getTracks().forEach((t) => t.stop());
+        stopCanvasTracks(rec);
     }, []);
 
     const start = useCallback(() => {
@@ -305,7 +310,7 @@ export function useCompositeRecorder({
                       });
         } catch {
             setError("Browser tidak mendukung perekaman video.");
-            stream.getTracks().forEach((t) => t.stop());
+            canvasStream.getVideoTracks().forEach((t) => t.stop());
             return;
         }
 
@@ -320,6 +325,7 @@ export function useCompositeRecorder({
                 if (tickRef.current % 4 === 0) aboutRef.current = readAbout();
             }, 500),
             stream,
+            canvasStream,
             recorder,
             chunks,
             startedAt,
@@ -333,7 +339,7 @@ export function useCompositeRecorder({
             const active = recRef.current === rec;
             cancelAnimationFrame(rec.raf);
             clearInterval(rec.timer);
-            rec.stream.getTracks().forEach((t) => t.stop());
+            stopCanvasTracks(rec);
             if (active) {
                 const blob = new Blob(chunks, { type: "video/webm" });
                 blobRef.current = blob;
@@ -367,13 +373,14 @@ export function useCompositeRecorder({
             else {
                 cancelAnimationFrame(rec.raf);
                 clearInterval(rec.timer);
-                rec.stream.getTracks().forEach((t) => t.stop());
+                stopCanvasTracks(rec);
                 recRef.current = null;
                 setStatus("idle");
             }
         } catch {
             cancelAnimationFrame(rec.raf);
             clearInterval(rec.timer);
+            stopCanvasTracks(rec);
             recRef.current = null;
             setStatus("idle");
         }
@@ -393,7 +400,7 @@ export function useCompositeRecorder({
                 } catch {
                     /* noop */
                 }
-                rec.stream.getTracks().forEach((t) => t.stop());
+                stopCanvasTracks(rec);
                 recRef.current = null;
             }
             setBlobUrl((prev) => {
