@@ -13,21 +13,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-interface AboutData {
-  name: string;
-  role: string;
-  bio: string;
-  link: string;
-}
-
-const STORAGE_KEY = "creator-screen-about";
-const DEFAULT_ABOUT: AboutData = {
-  name: "Nama Kamu",
-  role: "Software Engineer",
-  bio: "Halo! Saya membuat konten coding dan tutorial.",
-  link: "@username",
-};
+import {
+  STORAGE_KEY,
+  DEFAULT_ABOUT,
+  type AboutData,
+} from "@/app/lib/about";
 
 export default function AboutPanel() {
   const [data, setData] = useState<AboutData>(DEFAULT_ABOUT);
