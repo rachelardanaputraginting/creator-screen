@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/empty";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AboutPanel from "./about-panel";
+import TechMarquee from "./tech-marquee";
+import { useCompositeRecorder } from "@/app/hooks/use-composite-recorder";
 import {
   MonitorUp,
   MonitorOff,
@@ -36,6 +38,8 @@ import {
   Minimize,
   Play,
   Square,
+  Circle,
+  Download,
 } from "lucide-react";
 
 function defaultScenes(): Scene[] {
@@ -95,9 +99,12 @@ export default function EditorLayout() {
   } = useStore();
 
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [recordNotice, setRecordNotice] = useState<string | null>(null);
   const [screenOn, setScreenOn] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [mirror, setMirror] = useState(true);
+  const [screenVideoEl, setScreenVideoEl] = useState<HTMLVideoElement | null>(null);
+  const [cameraVideoEl, setCameraVideoEl] = useState<HTMLVideoElement | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -178,17 +185,61 @@ export default function EditorLayout() {
     }
   }, [cameraOn]);
 
+  const recorder = useCompositeRecorder({
+    screenVideo: screenVideoEl,
+    cameraVideo: cameraVideoEl,
+    mirror,
+  });
+  const recording = recorder.status === "recording";
+  const statusRef = useRef(recorder.status);
+  statusRef.current = recorder.status;
+
+  const attachScreenVideo = useCallback((node: HTMLVideoElement | null) => {
+    screenVideoRef.current = node;
+    setScreenVideoEl(node);
+  }, []);
+
+  const attachCameraVideo = useCallback((node: HTMLVideoElement | null) => {
+    cameraVideoRef.current = node;
+    setCameraVideoEl(node);
+  }, []);
+
+  const downloadRecording = useCallback((url: string, name: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, []);
+
+  const prevBlobUrl = useRef<string | null>(null);
+  useEffect(() => {
+    if (recorder.blobUrl && recorder.blobUrl !== prevBlobUrl.current) {
+      prevBlobUrl.current = recorder.blobUrl;
+      downloadRecording(recorder.blobUrl, recorder.fileName);
+    }
+  }, [recorder.blobUrl, recorder.fileName, downloadRecording]);
+
   const stopScreenTracks = useCallback(() => {
+    if (statusRef.current === "recording") {
+      recorder.stop();
+      setRecordNotice("Layar berhenti — rekaman parsial tersimpan, silakan download.");
+    }
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current = null;
     setScreenOn(false);
-  }, []);
+  }, [recorder]);
 
   const stopCameraTracks = useCallback(() => {
+    if (statusRef.current === "recording") {
+      recorder.stop();
+      setRecordNotice("Kamera berhenti — rekaman parsial tersimpan, silakan download.");
+    }
     cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
     cameraStreamRef.current = null;
     setCameraOn(false);
-  }, []);
+  }, [recorder]);
 
   useEffect(
     () => () => {
@@ -236,6 +287,9 @@ export default function EditorLayout() {
       });
       cameraStreamRef.current = stream;
       setCameraOn(true);
+      stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+        stopCameraTracks();
+      });
     } catch {
       setMediaError("Unable to access the camera. Check your system permissions and try again.");
     }
@@ -264,7 +318,7 @@ export default function EditorLayout() {
         <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg bg-muted">
           {hasScreen ? (
             <video
-              ref={screenVideoRef}
+              ref={attachScreenVideo}
               autoPlay
               muted
               playsInline
@@ -278,7 +332,7 @@ export default function EditorLayout() {
                 </EmptyMedia>
                 <EmptyTitle>No content source</EmptyTitle>
                 <EmptyDescription>
-                  Choose a screen to begin. Preview only — nothing is recorded.
+                  Choose a screen to begin. Siap direkam HD — layar + kamera digabung saat Record.
                 </EmptyDescription>
               </EmptyHeader>
               {!presentation && (
@@ -303,7 +357,7 @@ export default function EditorLayout() {
         <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg bg-muted">
           {cameraOn ? (
             <video
-              ref={cameraVideoRef}
+              ref={attachCameraVideo}
               autoPlay
               muted
               playsInline
@@ -378,7 +432,7 @@ export default function EditorLayout() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Creator Screen</h1>
           <p className="text-sm text-muted-foreground">
-            Display only — recording happens on your phone.
+            Rekam layar + kamera gabungan 1080p langsung di browser.
           </p>
         </div>
         <div className="flex gap-2">
@@ -406,6 +460,33 @@ export default function EditorLayout() {
             <AlertDescription>{mediaError}</AlertDescription>
             <AlertAction>
               <Button size="sm" variant="outline" onClick={() => setMediaError(null)}>
+                Dismiss
+              </Button>
+            </AlertAction>
+          </Alert>
+        </div>
+      )}
+
+      {recorder.error && (
+        <div className="px-4 pt-4 sm:px-6">
+          <Alert variant="destructive">
+            <AlertTitle>Recording gagal</AlertTitle>
+            <AlertDescription>{recorder.error}</AlertDescription>
+            <AlertAction>
+              <Button size="sm" variant="outline" onClick={() => recorder.clearError()}>
+                Dismiss
+              </Button>
+            </AlertAction>
+          </Alert>
+        </div>
+      )}
+
+      {recordNotice && (
+        <div className="px-4 pt-4 sm:px-6">
+          <Alert>
+            <AlertDescription>{recordNotice}</AlertDescription>
+            <AlertAction>
+              <Button size="sm" variant="outline" onClick={() => setRecordNotice(null)}>
                 Dismiss
               </Button>
             </AlertAction>
@@ -441,6 +522,51 @@ export default function EditorLayout() {
             </div>
           </div>
           {screenPreview}
+          <TechMarquee />
+          <Card size="sm">
+            <CardContent className="flex flex-wrap items-center gap-2">
+              {recording ? (
+                <>
+                  <Badge variant="destructive">
+                    <span className="size-1.5 animate-pulse rounded-full bg-current" />
+                    REC {`${String(Math.floor(recorder.elapsedMs / 60000)).padStart(2, "0")}:${String(Math.floor((recorder.elapsedMs % 60000) / 1000)).padStart(2, "0")}`}
+                  </Badge>
+                  <Button size="sm" variant="outline" onClick={() => recorder.stop()}>
+                    <Square /> Stop
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => recorder.start()}
+                    disabled={!screenOn || !cameraOn}
+                  >
+                    <Circle className="fill-current" /> Record HD
+                  </Button>
+                  {(!screenOn || !cameraOn) && (
+                    <p className="text-xs text-muted-foreground">
+                      {!screenOn && !cameraOn
+                        ? "Aktifkan layar dan kamera untuk merekam."
+                        : !screenOn
+                          ? "Aktifkan layar untuk merekam."
+                          : "Aktifkan kamera untuk merekam."}
+                    </p>
+                  )}
+                </>
+              )}
+              {recorder.blobUrl && !recording && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto"
+                  onClick={() => recorder.blobUrl && downloadRecording(recorder.blobUrl, recorder.fileName)}
+                >
+                  <Download /> Download .webm
+                </Button>
+              )}
+            </CardContent>
+          </Card>
         </main>
 
         <Separator orientation="vertical" />
