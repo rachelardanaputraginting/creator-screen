@@ -218,6 +218,7 @@ export default function EditorLayout() {
         screenVideo: screenVideoEl,
         cameraVideo: cameraVideoEl,
         mirror,
+        micStream,
     });
     const recording = recorder.status === "recording";
     const statusRef = useRef(recorder.status);
@@ -254,7 +255,7 @@ export default function EditorLayout() {
         if (statusRef.current === "recording") {
             recorder.stop();
             setRecordNotice(
-                "Layar berhenti — rekaman parsial tersimpan, silakan download.",
+                "Layar berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
         screenStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -266,7 +267,7 @@ export default function EditorLayout() {
         if (statusRef.current === "recording") {
             recorder.stop();
             setRecordNotice(
-                "Kamera berhenti — rekaman parsial tersimpan, silakan download.",
+                "Kamera berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
         cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -351,7 +352,7 @@ export default function EditorLayout() {
         if (statusRef.current === "recording") {
             recorder.stop();
             setRecordNotice(
-                "Mic berhenti — rekaman parsial tersimpan, silakan download.",
+                "Mic berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
         micStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -424,7 +425,7 @@ export default function EditorLayout() {
                                 </EmptyMedia>
                                 <EmptyTitle>No content source</EmptyTitle>
                                 <EmptyDescription>
-                                    Choose a screen to begin. Siap direkam HD —
+                                    Choose a screen to begin. Siap direkam HD -
                                     layar + kamera digabung saat Record.
                                 </EmptyDescription>
                             </EmptyHeader>
@@ -734,6 +735,11 @@ export default function EditorLayout() {
                                                 : !screenOn
                                                   ? "Aktifkan layar untuk merekam."
                                                   : "Aktifkan kamera untuk merekam."}
+                                        </p>
+                                    )}
+                                    {!micOn && (screenOn || cameraOn) && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Mic off - file tanpa suara.
                                         </p>
                                     )}
                                 </>
