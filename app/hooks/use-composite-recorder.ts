@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readAbout, type AboutData } from "@/app/lib/about";
+import { TECH_ITEMS } from "@/app/components/tech-marquee";
 
 export const WIDTH = 1920;
 export const HEIGHT = 1080;
@@ -10,6 +11,8 @@ export const PANEL_W = 360;
 export const PANEL_PAD = 24;
 export const CAM_W = 312;
 export const CAM_H = 176;
+export const TICKER_H = 76;
+export const CARD_RADIUS = 24;
 export const FPS = 30;
 
 const MIME_FALLBACK = [
@@ -43,6 +46,7 @@ interface ActiveRecording {
     recorder: MediaRecorder;
     chunks: Blob[];
     startedAt: number;
+    frames: number;
 }
 
 function stopCanvasTracks(rec: ActiveRecording) {
@@ -128,43 +132,146 @@ function wrapText(
     return result;
 }
 
+interface StageTheme {
+    panelBg: string;
+    text: string;
+    muted: string;
+    border: string;
+    tickerBg: string;
+    avatarBg: string;
+}
+
+function themeFor(dark: boolean): StageTheme {
+    return dark
+        ? {
+              panelBg: "#141414",
+              text: "#FFFFFF",
+              muted: "#B0B0B0",
+              border: "rgba(255,255,255,0.18)",
+              tickerBg: "rgba(8,8,8,0.94)",
+              avatarBg: "#2A2A2A",
+          }
+        : {
+              panelBg: "#FFFFFF",
+              text: "#111111",
+              muted: "#5A5A5A",
+              border: "rgba(0,0,0,0.14)",
+              tickerBg: "rgba(244,244,244,0.96)",
+              avatarBg: "#E4E4E4",
+          };
+}
+
+function roundRectPath(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number,
+) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+}
+
+function initialsOf(name: string): string {
+    const initials = name
+        .split(" ")
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase();
+    return initials || "-";
+}
+
+function sampleAverage(
+    sampleCtx: CanvasRenderingContext2D,
+    video: HTMLVideoElement,
+): string {
+    try {
+        const sw = sampleCtx.canvas.width;
+        const sh = sampleCtx.canvas.height;
+        sampleCtx.drawImage(video, 0, 0, sw, sh);
+        const data = sampleCtx.getImageData(0, 0, sw, sh).data;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        const n = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+            r += data[i];
+            g += data[i + 1];
+            b += data[i + 2];
+        }
+        return `rgb(${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)})`;
+    } catch {
+        return "#000000";
+    }
+}
+
 function drawPanel(
     ctx: CanvasRenderingContext2D,
     about: AboutData,
     cameraVideo: HTMLVideoElement | null,
     mirror: boolean,
+    dark: boolean,
 ) {
-    ctx.fillStyle = "#111111";
+    const theme = themeFor(dark);
+    ctx.fillStyle = theme.panelBg;
     ctx.fillRect(PANEL_X, 0, PANEL_W, HEIGHT);
+    ctx.strokeStyle = theme.border;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(PANEL_X + 1, 0);
+    ctx.lineTo(PANEL_X + 1, HEIGHT);
+    ctx.stroke();
+
     const tx = PANEL_X + PANEL_PAD;
     const maxW = PANEL_W - PANEL_PAD * 2;
 
+    // Avatar + name header (mirrors AboutPanel).
+    const ax = tx + 44;
+    const ay = 88;
+    ctx.fillStyle = theme.avatarBg;
+    ctx.beginPath();
+    ctx.arc(ax, ay, 44, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = theme.text;
+    ctx.font = "600 30px Manrope, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(initialsOf(about.name || ""), ax, ay + 1);
+    ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "#FFFFFF";
-    ctx.font = "600 44px Manrope, sans-serif";
-    ctx.fillText(about.name || "-", tx, 110, maxW);
 
-    ctx.fillStyle = "#B0B0B0";
-    ctx.font = "28px Manrope, sans-serif";
-    ctx.fillText(about.role || "", tx, 155, maxW);
-
+    ctx.fillStyle = theme.text;
+    ctx.font = "600 34px Manrope, sans-serif";
+    ctx.fillText(about.name || "-", tx + 104, 78, maxW - 104);
+    ctx.fillStyle = theme.muted;
     ctx.font = "26px Manrope, sans-serif";
-    const bioLines = wrapText(ctx, about.bio || "", maxW, 4);
+    ctx.fillText(about.role || "", tx + 104, 112, maxW - 104);
+
+    ctx.font = "24px Manrope, sans-serif";
+    const bioLines = wrapText(ctx, about.bio || "", maxW, 3);
     bioLines.forEach((line, i) => {
-        ctx.fillText(line, tx, 195 + i * 32, maxW);
+        ctx.fillText(line, tx, 168 + i * 30, maxW);
     });
 
-    const linkY = 195 + bioLines.length * 32 + 12;
+    const linkY = 168 + bioLines.length * 30 + 10;
     if (about.link) ctx.fillText(about.link, tx, linkY, maxW);
 
-    const camY = linkY + 64;
+    const camY = linkY + 56;
     const camX = PANEL_X + PANEL_PAD;
     ctx.fillStyle = "#000000";
-    ctx.fillRect(camX, camY, CAM_W, CAM_H);
+    roundRectPath(ctx, camX, camY, CAM_W, CAM_H, 16);
+    ctx.fill();
     if (cameraVideo && cameraVideo.readyState >= 2) {
         ctx.save();
-        ctx.beginPath();
-        ctx.rect(camX, camY, CAM_W, CAM_H);
+        roundRectPath(ctx, camX, camY, CAM_W, CAM_H, 16);
         ctx.clip();
         if (mirror) {
             ctx.translate(camX + CAM_W, 0);
@@ -175,6 +282,39 @@ function drawPanel(
         }
         ctx.restore();
     }
+    ctx.strokeStyle = theme.border;
+    ctx.lineWidth = 2;
+    roundRectPath(ctx, camX, camY, CAM_W, CAM_H, 16);
+    ctx.stroke();
+}
+
+function drawTicker(
+    ctx: CanvasRenderingContext2D,
+    elapsedMs: number,
+    dark: boolean,
+) {
+    const theme = themeFor(dark);
+    const y = HEIGHT - TICKER_H;
+    ctx.fillStyle = theme.tickerBg;
+    ctx.fillRect(0, y, WIDTH, TICKER_H);
+    ctx.fillStyle = theme.border;
+    ctx.fillRect(0, y, WIDTH, 2);
+
+    const text = TECH_ITEMS.join("   \u2022   ") + "   \u2022   ";
+    ctx.font = "500 28px Manrope, sans-serif";
+    ctx.textBaseline = "middle";
+    const textW = ctx.measureText(text).width;
+    if (textW <= 0) {
+        ctx.textBaseline = "alphabetic";
+        return;
+    }
+    const speed = 120;
+    const off = ((elapsedMs / 1000) * speed) % textW;
+    ctx.fillStyle = theme.muted;
+    for (let x = WIDTH - off; x > -textW; x -= textW) {
+        ctx.fillText(text, x, y + TICKER_H / 2 + 1, textW);
+    }
+    ctx.textBaseline = "alphabetic";
 }
 
 function drawCover(
@@ -221,6 +361,12 @@ export function useCompositeRecorder({
     const mirrorRef = useRef(mirror);
     mirrorRef.current = mirror;
     const aboutRef = useRef<AboutData>(readAbout());
+    const darkRef = useRef<boolean>(
+        typeof document !== "undefined"
+            ? document.documentElement.classList.contains("dark")
+            : true,
+    );
+    const bgRef = useRef<string>("#000000");
     const tickRef = useRef(0);
 
     const teardown = useCallback((rec: ActiveRecording) => {
@@ -234,7 +380,7 @@ export function useCompositeRecorder({
         stopCanvasTracks(rec);
     }, []);
 
-    const start = useCallback(() => {
+    const start = useCallback(async () => {
         if (recRef.current) return;
         if (typeof MediaRecorder === "undefined") {
             setError("Browser tidak mendukung perekaman video.");
@@ -266,23 +412,61 @@ export function useCompositeRecorder({
             setError("Gagal menyiapkan kanvas rekaman.");
             return;
         }
+        try {
+            await Promise.race([
+                document.fonts.ready,
+                new Promise((resolve) => setTimeout(resolve, 1500)),
+            ]);
+        } catch {
+            /* fall back to sans-serif */
+        }
+
+        const sampleCanvas = document.createElement("canvas");
+        sampleCanvas.width = 32;
+        sampleCanvas.height = 18;
+        const sampleCtx = sampleCanvas.getContext("2d", {
+            willReadFrequently: true,
+        });
 
         const loop = () => {
             const rec = recRef.current;
             if (!rec) return;
-            ctx.fillStyle = "#000";
+            rec.frames += 1;
+            if (
+                rec.frames % 60 === 1 &&
+                sampleCtx &&
+                screenVideo.readyState >= 2
+            ) {
+                bgRef.current = sampleAverage(sampleCtx, screenVideo);
+            }
+            const dark = darkRef.current;
+            const theme = themeFor(dark);
+
+            ctx.fillStyle = bgRef.current;
             ctx.fillRect(0, 0, WIDTH, HEIGHT);
             if (screenVideo.readyState >= 2) {
-                drawContainIn(
-                    ctx,
-                    screenVideo,
-                    PANEL_PAD,
-                    PANEL_PAD,
-                    PANEL_X - PANEL_PAD * 2,
-                    HEIGHT - PANEL_PAD * 2,
-                );
+                const sx = PANEL_PAD;
+                const sy = PANEL_PAD;
+                const sw = PANEL_X - PANEL_PAD * 2;
+                const sh = HEIGHT - PANEL_PAD * 2;
+                ctx.save();
+                roundRectPath(ctx, sx, sy, sw, sh, CARD_RADIUS);
+                ctx.clip();
+                drawContainIn(ctx, screenVideo, sx, sy, sw, sh);
+                ctx.restore();
+                ctx.strokeStyle = theme.border;
+                ctx.lineWidth = 3;
+                roundRectPath(ctx, sx, sy, sw, sh, CARD_RADIUS);
+                ctx.stroke();
             }
-            drawPanel(ctx, aboutRef.current, cameraVideo, mirrorRef.current);
+            drawPanel(
+                ctx,
+                aboutRef.current,
+                cameraVideo,
+                mirrorRef.current,
+                dark,
+            );
+            drawTicker(ctx, Date.now() - rec.startedAt, dark);
             rec.raf = requestAnimationFrame(loop);
         };
 
@@ -317,18 +501,25 @@ export function useCompositeRecorder({
         const startedAt = Date.now();
         tickRef.current = 0;
         aboutRef.current = readAbout();
+        darkRef.current = document.documentElement.classList.contains("dark");
+        bgRef.current = "#000000";
         const rec: ActiveRecording = {
             raf: 0,
             timer: setInterval(() => {
                 setElapsedMs(Date.now() - startedAt);
                 tickRef.current += 1;
-                if (tickRef.current % 4 === 0) aboutRef.current = readAbout();
+                if (tickRef.current % 4 === 0) {
+                    aboutRef.current = readAbout();
+                    darkRef.current =
+                        document.documentElement.classList.contains("dark");
+                }
             }, 500),
             stream,
             canvasStream,
             recorder,
             chunks,
             startedAt,
+            frames: 0,
         };
         recRef.current = rec;
 

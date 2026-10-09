@@ -184,6 +184,11 @@ export default function EditorLayout() {
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && useStore.getState().isSessionActive) {
+                useStore.getState().setIsSessionActive(false);
+                void exitFullscreen();
+                return;
+            }
             if (e.ctrlKey && e.shiftKey && (e.key === "F" || e.key === "f")) {
                 e.preventDefault();
                 toggleFullscreen();
@@ -198,7 +203,7 @@ export default function EditorLayout() {
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [toggleFullscreen]);
+    }, [toggleFullscreen, exitFullscreen]);
 
     useEffect(() => {
         if (screenVideoRef.current && screenStreamRef.current) {
@@ -555,16 +560,15 @@ export default function EditorLayout() {
                 </div>
                 <Separator orientation="vertical" />
                 <div className="flex w-[280px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
-                    <AboutPanel />
+                    <AboutPanel clean />
                     {cameraCard}
                 </div>
-                <div className="absolute bottom-4 right-4 z-20">
+                <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
                     <Button
-                        size="sm"
                         variant="secondary"
                         onClick={handleEndSession}
                     >
-                        End session / exit
+                        <Square /> End session (Esc)
                     </Button>
                 </div>
             </div>
