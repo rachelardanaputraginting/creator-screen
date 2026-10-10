@@ -580,7 +580,7 @@ export default function EditorLayout() {
                         <TechMarquee />
                     </div>
                     <Separator orientation="vertical" />
-                    <div className="flex w-[280px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
+                    <div className="flex min-h-0 w-[280px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
                         <AboutPanel clean />
                         {cameraCard}
                     </div>
@@ -599,14 +599,11 @@ export default function EditorLayout() {
             ref={attachStage}
             className="flex h-screen flex-col overflow-hidden bg-background text-foreground"
         >
-            <header className="flex items-center justify-between gap-4 px-4 py-3 sm:px-4">
+            <header className="flex items-center justify-between gap-4 px-4 py-2 sm:px-4">
                 <div>
                     <h1 className="text-lg font-semibold tracking-tight">
                         Creator Screen
                     </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Rekam stage 1080p langsung — pilih tab ini.
-                    </p>
                 </div>
                 <div className="flex gap-2 no-record">
                     <ThemeToggle />
@@ -759,16 +756,6 @@ export default function EditorLayout() {
                                         <Circle className="fill-current" />{" "}
                                         Record HD
                                     </Button>
-                                    <p className="text-xs text-muted-foreground">
-                                        Pilih tab Creator Screen ini di dialog
-                                        berikutnya. Esc untuk stop saat
-                                        merekam.
-                                    </p>
-                                    {!micOn && (
-                                        <p className="text-xs text-muted-foreground">
-                                            Mic off - file tanpa suara.
-                                        </p>
-                                    )}
                                 </>
                             )}
                             {recorder.blobUrl && !recording && (
@@ -793,15 +780,19 @@ export default function EditorLayout() {
             </div>
 
             <Separator />
-            <footer className="flex items-center justify-between gap-4 px-4 py-2 text-sm text-muted-foreground sm:px-4">
+            <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-xs text-muted-foreground sm:px-4">
                 <span>
                     {isSessionActive
                         ? "Session active"
                         : currentScene
                           ? `Scene: ${currentScene.name}`
                           : "Editor mode"}
+                    {!micOn && " · Mic off - file tanpa suara."}
                 </span>
-                <span>Ctrl+1…4 switch · Ctrl+Shift+F fullscreen</span>
+                <span>
+                    Pilih tab ini di dialog · Esc stop · Ctrl+1…4 switch ·
+                    Ctrl+Shift+F fullscreen
+                </span>
             </footer>
         </div>
     );
