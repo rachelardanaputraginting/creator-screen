@@ -760,43 +760,45 @@ export default function EditorLayout() {
 
             <div className="flex min-h-0 flex-1">
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 sm:px-4">
-                    <div className="flex flex-wrap items-center gap-2 no-record">
-                        <Tabs
-                            value={currentScene?.id ?? ""}
-                            onValueChange={(v) => switchScene(v)}
-                        >
-                            <TabsList>
-                                {scenes.map((scene, i) => (
-                                    <TabsTrigger
-                                        key={scene.id}
-                                        value={scene.id}
-                                    >
-                                        {i + 1}. {scene.name}
-                                    </TabsTrigger>
-                                ))}
-                            </TabsList>
-                        </Tabs>
-                        <div className="ml-auto">
-                            {screenOn ? (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleStopScreen}
-                                >
-                                    <MonitorOff /> Stop screen
-                                </Button>
-                            ) : (
-                                <Button
-                                    size="sm"
-                                    onClick={() => void handleShareScreen()}
-                                >
-                                    <MonitorUp /> Select screen
-                                </Button>
-                            )}
-                        </div>
-                    </div>
                     <div className="flex min-h-0 flex-1 gap-4">
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+                            <div className="flex flex-wrap items-center gap-2 no-record">
+                                <Tabs
+                                    value={currentScene?.id ?? ""}
+                                    onValueChange={(v) => switchScene(v)}
+                                >
+                                    <TabsList>
+                                        {scenes.map((scene, i) => (
+                                            <TabsTrigger
+                                                key={scene.id}
+                                                value={scene.id}
+                                            >
+                                                {i + 1}. {scene.name}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                </Tabs>
+                                <div className="ml-auto">
+                                    {screenOn ? (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleStopScreen}
+                                        >
+                                            <MonitorOff /> Stop screen
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            onClick={() =>
+                                                void handleShareScreen()
+                                            }
+                                        >
+                                            <MonitorUp /> Select screen
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
                             {screenPreview}
                             <TechMarquee />
                         </div>
