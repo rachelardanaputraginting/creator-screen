@@ -239,6 +239,11 @@ export default function EditorLayout() {
         setCameraVideoEl(node);
     }, []);
 
+    const stageRef = useRef<HTMLElement | null>(null);
+    const attachStage = useCallback((node: HTMLElement | null) => {
+        stageRef.current = node;
+    }, []);
+
     const downloadRecording = useCallback((url: string, name: string) => {
         const a = document.createElement("a");
         a.href = url;
@@ -412,7 +417,7 @@ export default function EditorLayout() {
             <CardContent className="p-0">
                 <AspectRatio
                     ratio={16 / 9}
-                    className="overflow-hidden rounded-md h-fit bg-red-500"
+                    className="overflow-hidden rounded-md h-fit bg-muted"
                 >
                     {hasScreen ? (
                         <video
@@ -554,14 +559,19 @@ export default function EditorLayout() {
                         <Badge variant="destructive">Session active</Badge>
                     </div>
                 )}
-                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-                    {screenPreview}
-                    <TechMarquee />
-                </div>
-                <Separator orientation="vertical" />
-                <div className="flex w-[280px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
-                    <AboutPanel clean />
-                    {cameraCard}
+                <div
+                    ref={attachStage}
+                    className="flex min-w-0 flex-1"
+                >
+                    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                        {screenPreview}
+                        <TechMarquee />
+                    </div>
+                    <Separator orientation="vertical" />
+                    <div className="flex w-[280px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
+                        <AboutPanel clean />
+                        {cameraCard}
+                    </div>
                 </div>
                 <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
                     <Button variant="secondary" onClick={handleEndSession}>
@@ -700,8 +710,17 @@ export default function EditorLayout() {
                             )}
                         </div>
                     </div>
-                    {screenPreview}
-                    <TechMarquee />
+                    <div
+                        ref={attachStage}
+                        className="flex min-w-0 flex-1 gap-4"
+                    >
+                        <div className="flex min-w-0 flex-1 flex-col gap-4">
+                            {screenPreview}
+                            <TechMarquee />
+                        </div>
+                        <Separator orientation="vertical" />
+                        {sidebar}
+                    </div>
                     <Card size="sm">
                         <CardContent className="flex flex-wrap items-center gap-2">
                             {recording ? (
@@ -764,9 +783,6 @@ export default function EditorLayout() {
                         </CardContent>
                     </Card>
                 </main>
-
-                <Separator orientation="vertical" />
-                {sidebar}
             </div>
 
             <Separator />
