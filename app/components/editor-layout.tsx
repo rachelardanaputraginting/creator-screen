@@ -178,6 +178,10 @@ export default function EditorLayout() {
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && statusRef.current === "recording") {
+                recorder.stop();
+                return;
+            }
             if (e.key === "Escape" && useStore.getState().isSessionActive) {
                 useStore.getState().setIsSessionActive(false);
                 void exitFullscreen();
@@ -245,6 +249,14 @@ export default function EditorLayout() {
         a.remove();
     }, []);
 
+    useEffect(() => {
+        document.documentElement.dataset.recording = recording
+            ? "true"
+            : "false";
+        return () => {
+            document.documentElement.dataset.recording = "false";
+        };
+    }, [recording]);
     const prevBlobUrl = useRef<string | null>(null);
     useEffect(() => {
         if (recorder.blobUrl && recorder.blobUrl !== prevBlobUrl.current) {
@@ -545,7 +557,7 @@ export default function EditorLayout() {
     );
 
     const sidebar = (
-        <aside className="flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
+        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
             <AboutPanel />
             {cameraCard}
         </aside>
@@ -553,16 +565,16 @@ export default function EditorLayout() {
 
     if (presentation) {
         return (
-            <div className="flex h-screen w-screen bg-background">
+            <div
+                ref={attachStage}
+                className="flex h-screen w-screen overflow-hidden bg-background"
+            >
                 {isSessionActive && (
-                    <div className="absolute left-4 top-3 z-20">
+                    <div className="absolute left-4 top-3 z-20 no-record">
                         <Badge variant="destructive">Session active</Badge>
                     </div>
                 )}
-                <div
-                    ref={attachStage}
-                    className="flex min-w-0 flex-1"
-                >
+                <div className="flex min-h-0 flex-1">
                     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
                         {screenPreview}
                         <TechMarquee />
@@ -573,7 +585,7 @@ export default function EditorLayout() {
                         {cameraCard}
                     </div>
                 </div>
-                <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+                <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 no-record">
                     <Button variant="secondary" onClick={handleEndSession}>
                         <Square /> End session (Esc)
                     </Button>
@@ -583,7 +595,10 @@ export default function EditorLayout() {
     }
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
+        <div
+            ref={attachStage}
+            className="flex h-screen flex-col overflow-hidden bg-background text-foreground"
+        >
             <header className="flex items-center justify-between gap-4 px-4 py-3 sm:px-4">
                 <div>
                     <h1 className="text-lg font-semibold tracking-tight">
@@ -593,7 +608,7 @@ export default function EditorLayout() {
                         Rekam stage 1080p langsung — pilih tab ini.
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 no-record">
                     <ThemeToggle />
                     <Button
                         size="sm"
@@ -673,9 +688,9 @@ export default function EditorLayout() {
                 </div>
             )}
 
-            <div className="flex min-h-[calc(100vh-140px)]">
-                <main className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:px-4">
-                    <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-h-0 flex-1">
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 sm:px-4">
+                    <div className="flex flex-wrap items-center gap-2 no-record">
                         <Tabs
                             value={currentScene?.id ?? ""}
                             onValueChange={(v) => switchScene(v)}
@@ -710,18 +725,15 @@ export default function EditorLayout() {
                             )}
                         </div>
                     </div>
-                    <div
-                        ref={attachStage}
-                        className="flex min-w-0 flex-1 gap-4"
-                    >
-                        <div className="flex min-w-0 flex-1 flex-col gap-4">
+                    <div className="flex min-h-0 flex-1 gap-4">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
                             {screenPreview}
                             <TechMarquee />
                         </div>
                         <Separator orientation="vertical" />
                         {sidebar}
                     </div>
-                    <Card size="sm">
+                    <Card size="sm" className="shrink-0 no-record">
                         <CardContent className="flex flex-wrap items-center gap-2">
                             {recording ? (
                                 <>
@@ -749,7 +761,8 @@ export default function EditorLayout() {
                                     </Button>
                                     <p className="text-xs text-muted-foreground">
                                         Pilih tab Creator Screen ini di dialog
-                                        berikutnya.
+                                        berikutnya. Esc untuk stop saat
+                                        merekam.
                                     </p>
                                     {!micOn && (
                                         <p className="text-xs text-muted-foreground">
