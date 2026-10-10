@@ -556,10 +556,83 @@ export default function EditorLayout() {
         </Card>
     );
 
+    const statusCard = (
+        <Card size="sm" className="shrink-0 no-record">
+            <CardHeader>
+                <CardTitle>Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-xs text-muted-foreground">
+                <p>
+                    {isSessionActive
+                        ? "Session active"
+                        : currentScene
+                          ? `Scene: ${currentScene.name}`
+                          : "Editor mode"}
+                    {!micOn && " · Mic off - file tanpa suara."}
+                </p>
+                <p>
+                    Pilih tab ini di dialog · Esc stop · Ctrl+1…4 switch ·
+                    Ctrl+Shift+F fullscreen
+                </p>
+            </CardContent>
+        </Card>
+    );
+
+    const recordCard = (
+        <Card size="sm" className="shrink-0 no-record">
+            <CardContent className="flex flex-wrap items-center gap-2">
+                {recording ? (
+                    <>
+                        <Badge variant="destructive">
+                            <span className="size-1.5 animate-pulse rounded-full bg-current" />
+                            REC{" "}
+                            {`${String(Math.floor(recorder.elapsedMs / 60000)).padStart(2, "0")}:${String(Math.floor((recorder.elapsedMs % 60000) / 1000)).padStart(2, "0")}`}
+                        </Badge>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => recorder.stop()}
+                        >
+                            <Square /> Stop
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <Button
+                            size="sm"
+                            onClick={() => recorder.start()}
+                        >
+                            <Circle className="fill-current" />{" "}
+                            Record HD
+                        </Button>
+                    </>
+                )}
+                {recorder.blobUrl && !recording && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="ml-auto"
+                        onClick={() =>
+                            recorder.blobUrl &&
+                            downloadRecording(
+                                recorder.blobUrl,
+                                recorder.fileName,
+                            )
+                        }
+                    >
+                        <Download /> Download .webm
+                    </Button>
+                )}
+            </CardContent>
+        </Card>
+    );
+
     const sidebar = (
         <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
             <AboutPanel />
             {cameraCard}
+            {statusCard}
+            {recordCard}
         </aside>
     );
 
@@ -730,70 +803,8 @@ export default function EditorLayout() {
                         <Separator orientation="vertical" />
                         {sidebar}
                     </div>
-                    <Card size="sm" className="shrink-0 no-record">
-                        <CardContent className="flex flex-wrap items-center gap-2">
-                            {recording ? (
-                                <>
-                                    <Badge variant="destructive">
-                                        <span className="size-1.5 animate-pulse rounded-full bg-current" />
-                                        REC{" "}
-                                        {`${String(Math.floor(recorder.elapsedMs / 60000)).padStart(2, "0")}:${String(Math.floor((recorder.elapsedMs % 60000) / 1000)).padStart(2, "0")}`}
-                                    </Badge>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => recorder.stop()}
-                                    >
-                                        <Square /> Stop
-                                    </Button>
-                                </>
-                            ) : (
-                                <>
-                                    <Button
-                                        size="sm"
-                                        onClick={() => recorder.start()}
-                                    >
-                                        <Circle className="fill-current" />{" "}
-                                        Record HD
-                                    </Button>
-                                </>
-                            )}
-                            {recorder.blobUrl && !recording && (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="ml-auto"
-                                    onClick={() =>
-                                        recorder.blobUrl &&
-                                        downloadRecording(
-                                            recorder.blobUrl,
-                                            recorder.fileName,
-                                        )
-                                    }
-                                >
-                                    <Download /> Download .webm
-                                </Button>
-                            )}
-                        </CardContent>
-                    </Card>
                 </main>
             </div>
-
-            <Separator />
-            <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-xs text-muted-foreground sm:px-4">
-                <span>
-                    {isSessionActive
-                        ? "Session active"
-                        : currentScene
-                          ? `Scene: ${currentScene.name}`
-                          : "Editor mode"}
-                    {!micOn && " · Mic off - file tanpa suara."}
-                </span>
-                <span>
-                    Pilih tab ini di dialog · Esc stop · Ctrl+1…4 switch ·
-                    Ctrl+Shift+F fullscreen
-                </span>
-            </footer>
         </div>
     );
 }

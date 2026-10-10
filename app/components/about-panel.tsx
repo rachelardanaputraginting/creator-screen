@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { STORAGE_KEY, DEFAULT_ABOUT, type AboutData } from "@/app/lib/about";
+import { Pencil } from "lucide-react";
 
 export default function AboutPanel({ clean = false }: { clean?: boolean }) {
     const [data, setData] = useState<AboutData>(DEFAULT_ABOUT);
@@ -130,9 +131,10 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
                         <Button
                             size="sm"
                             variant="ghost"
+                            aria-label="Edit tentang saya"
                             onClick={() => setEditing(true)}
                         >
-                            Edit
+                            <Pencil />
                         </Button>
                     </CardAction>
                 )}
