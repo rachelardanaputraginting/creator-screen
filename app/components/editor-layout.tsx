@@ -14,7 +14,6 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
@@ -473,38 +472,37 @@ export default function EditorLayout() {
         <Card size="sm">
             <CardHeader>
                 <CardTitle>Kamera & Mic</CardTitle>
-                <CardDescription>
-                    {cameraOn ? "Live preview" : "Belum aktif"}
-                </CardDescription>
                 <CardAction>
                     <div className="flex gap-1">
                         <Button
                             size="sm"
                             variant="ghost"
                             aria-label={
-                                micOn ? "Matikan mic" : "Aktifkan mic"
+                                micOn ? "Mic menyala" : "Mic mati"
                             }
-                            title={micOn ? "Matikan mic" : "Aktifkan mic"}
+                            title={
+                                micOn
+                                    ? "Mic menyala — klik untuk mematikan"
+                                    : "Mic mati — klik untuk mengaktifkan"
+                            }
                             onClick={() =>
                                 micOn
                                     ? handleStopMic()
                                     : void handleEnableMic()
                             }
                         >
-                            {micOn ? <MicOff /> : <Mic />}
+                            {micOn ? <Mic /> : <MicOff />}
                         </Button>
                         <Button
                             size="sm"
                             variant="ghost"
                             aria-label={
-                                cameraOn
-                                    ? "Matikan kamera"
-                                    : "Aktifkan kamera"
+                                cameraOn ? "Kamera menyala" : "Kamera mati"
                             }
                             title={
                                 cameraOn
-                                    ? "Matikan kamera"
-                                    : "Aktifkan kamera"
+                                    ? "Kamera menyala — klik untuk mematikan"
+                                    : "Kamera mati — klik untuk mengaktifkan"
                             }
                             onClick={() =>
                                 cameraOn
@@ -512,7 +510,7 @@ export default function EditorLayout() {
                                     : void handleEnableCamera()
                             }
                         >
-                            {cameraOn ? <CameraOff /> : <Camera />}
+                            {cameraOn ? <Camera /> : <CameraOff />}
                         </Button>
                     </div>
                 </CardAction>
@@ -542,15 +540,15 @@ export default function EditorLayout() {
                             <span className="text-xs">Aktifkan kamera</span>
                         </button>
                     )}
+                    <span
+                        title={cameraOn ? "Live" : "Kamera mati"}
+                        className={`absolute top-2 right-2 z-10 size-2.5 rounded-full ${
+                            cameraOn
+                                ? "animate-pulse bg-destructive"
+                                : "bg-muted-foreground"
+                        }`}
+                    />
                 </AspectRatio>
-                <div className="flex items-center gap-2">
-                    <Badge variant={cameraOn ? "secondary" : "outline"}>
-                        {cameraOn ? "Kamera aktif" : "Kamera mati"}
-                    </Badge>
-                    <Badge variant={micOn ? "secondary" : "outline"}>
-                        {micOn ? "Mic on" : "Mic off"}
-                    </Badge>
-                </div>
                 <div className="flex items-center justify-between">
                     <Label htmlFor="mirror">Mirror</Label>
                     <Switch
