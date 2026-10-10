@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Card,
+    CardAction,
     CardContent,
     CardDescription,
     CardHeader,
@@ -473,6 +474,46 @@ export default function EditorLayout() {
                 <CardDescription>
                     {cameraOn ? "Live preview" : "Belum aktif"}
                 </CardDescription>
+                <CardAction>
+                    <div className="flex gap-1">
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={
+                                micOn ? "Matikan mic" : "Aktifkan mic"
+                            }
+                            title={micOn ? "Matikan mic" : "Aktifkan mic"}
+                            onClick={() =>
+                                micOn
+                                    ? handleStopMic()
+                                    : void handleEnableMic()
+                            }
+                        >
+                            {micOn ? <MicOff /> : <Mic />}
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={
+                                cameraOn
+                                    ? "Matikan kamera"
+                                    : "Aktifkan kamera"
+                            }
+                            title={
+                                cameraOn
+                                    ? "Matikan kamera"
+                                    : "Aktifkan kamera"
+                            }
+                            onClick={() =>
+                                cameraOn
+                                    ? handleStopCamera()
+                                    : void handleEnableCamera()
+                            }
+                        >
+                            {cameraOn ? <CameraOff /> : <Camera />}
+                        </Button>
+                    </div>
+                </CardAction>
             </CardHeader>
             <CardContent className="space-y-3">
                 <AspectRatio
@@ -500,27 +541,13 @@ export default function EditorLayout() {
                         </button>
                     )}
                 </AspectRatio>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
                     <Badge variant={cameraOn ? "secondary" : "outline"}>
-                        {cameraOn ? "Aktif" : "Mati"}
+                        {cameraOn ? "Kamera aktif" : "Kamera mati"}
                     </Badge>
-                    {cameraOn ? (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleStopCamera}
-                        >
-                            <CameraOff /> Matikan
-                        </Button>
-                    ) : (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void handleEnableCamera()}
-                        >
-                            <Camera /> Aktifkan
-                        </Button>
-                    )}
+                    <Badge variant={micOn ? "secondary" : "outline"}>
+                        {micOn ? "Mic on" : "Mic off"}
+                    </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                     <Label htmlFor="mirror">Mirror</Label>
@@ -530,50 +557,6 @@ export default function EditorLayout() {
                         onCheckedChange={setMirror}
                     />
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                    <Badge variant={micOn ? "secondary" : "outline"}>
-                        {micOn ? "Mic on" : "Mic off"}
-                    </Badge>
-                    {micOn ? (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleStopMic}
-                        >
-                            <MicOff /> Matikan mic
-                        </Button>
-                    ) : (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void handleEnableMic()}
-                        >
-                            <Mic /> Aktifkan mic
-                        </Button>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
-
-    const statusCard = (
-        <Card size="sm" className="shrink-0 no-record">
-            <CardHeader>
-                <CardTitle>Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-xs text-muted-foreground">
-                <p>
-                    {isSessionActive
-                        ? "Session active"
-                        : currentScene
-                          ? `Scene: ${currentScene.name}`
-                          : "Editor mode"}
-                    {!micOn && " · Mic off - file tanpa suara."}
-                </p>
-                <p>
-                    Pilih tab ini di dialog · Esc stop · Ctrl+1…4 switch ·
-                    Ctrl+Shift+F fullscreen
-                </p>
             </CardContent>
         </Card>
     );
@@ -623,6 +606,14 @@ export default function EditorLayout() {
                         <Download /> Download .webm
                     </Button>
                 )}
+                {!recording && (
+                    <p className="w-full text-[11px] text-muted-foreground">
+                        {currentScene
+                            ? `Scene: ${currentScene.name}`
+                            : "Editor mode"}
+                        {!micOn && " · Mic off"} · Pilih tab ini · Esc stop
+                    </p>
+                )}
             </CardContent>
         </Card>
     );
@@ -631,7 +622,6 @@ export default function EditorLayout() {
         <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
             <AboutPanel />
             {cameraCard}
-            {statusCard}
             {recordCard}
         </aside>
     );

@@ -8,10 +8,17 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { STORAGE_KEY, DEFAULT_ABOUT, type AboutData } from "@/app/lib/about";
 import { Pencil } from "lucide-react";
@@ -34,6 +41,11 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
         }
     }, []);
 
+    const openEditor = () => {
+        setDraft(data);
+        setEditing(true);
+    };
+
     const save = () => {
         setData(draft);
         try {
@@ -51,60 +63,106 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
         .join("")
         .toUpperCase();
 
-    if (editing) {
-        return (
+    return (
+        <>
             <Card size="sm">
                 <CardHeader>
                     <CardTitle>Tentang saya</CardTitle>
-                    <CardDescription>
-                        Ditampilkan di samping preview.
-                    </CardDescription>
+                    {!clean && (
+                        <CardAction>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                aria-label="Edit tentang saya"
+                                onClick={openEditor}
+                            >
+                                <Pencil />
+                            </Button>
+                        </CardAction>
+                    )}
                 </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="about-name">Nama</Label>
-                        <Input
-                            id="about-name"
-                            value={draft.name}
-                            onChange={(e) =>
-                                setDraft({ ...draft, name: e.target.value })
-                            }
-                        />
+                <CardContent>
+                    <div className="flex items-center gap-3">
+                        <Avatar size="lg">
+                            <AvatarFallback>{initials || "-"}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                                {data.name}
+                            </p>
+                            <p className="truncate text-sm text-muted-foreground">
+                                {data.role}
+                            </p>
+                        </div>
                     </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="about-role">Role</Label>
-                        <Input
-                            id="about-role"
-                            value={draft.role}
-                            onChange={(e) =>
-                                setDraft({ ...draft, role: e.target.value })
-                            }
-                        />
+                    <p className="mt-3 text-sm text-muted-foreground">
+                        {data.bio}
+                    </p>
+                    {data.link && (
+                        <p className="mt-1 truncate text-sm text-muted-foreground">
+                            {data.link}
+                        </p>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Dialog
+                open={editing}
+                onOpenChange={(open) => {
+                    if (!open) setDraft(data);
+                    setEditing(open);
+                }}
+            >
+                <DialogContent className="max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit tentang saya</DialogTitle>
+                        <DialogDescription>
+                            Ditampilkan di samping preview.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="about-name">Nama</Label>
+                            <Input
+                                id="about-name"
+                                value={draft.name}
+                                onChange={(e) =>
+                                    setDraft({ ...draft, name: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="about-role">Role</Label>
+                            <Input
+                                id="about-role"
+                                value={draft.role}
+                                onChange={(e) =>
+                                    setDraft({ ...draft, role: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="about-bio">Bio singkat</Label>
+                            <Input
+                                id="about-bio"
+                                value={draft.bio}
+                                onChange={(e) =>
+                                    setDraft({ ...draft, bio: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="about-link">Sosmed / link</Label>
+                            <Input
+                                id="about-link"
+                                value={draft.link}
+                                onChange={(e) =>
+                                    setDraft({ ...draft, link: e.target.value })
+                                }
+                            />
+                        </div>
                     </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="about-bio">Bio singkat</Label>
-                        <Input
-                            id="about-bio"
-                            value={draft.bio}
-                            onChange={(e) =>
-                                setDraft({ ...draft, bio: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="about-link">Sosmed / link</Label>
-                        <Input
-                            id="about-link"
-                            value={draft.link}
-                            onChange={(e) =>
-                                setDraft({ ...draft, link: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                        <Button size="sm" className="flex-1" onClick={save}>
-                            Simpan
-                        </Button>
+                    <DialogFooter>
                         <Button
                             size="sm"
                             variant="outline"
@@ -116,50 +174,16 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
                         >
                             Batal
                         </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <Card size="sm">
-            <CardHeader>
-                <CardTitle>Tentang saya</CardTitle>
-                {!clean && (
-                    <CardAction>
                         <Button
                             size="sm"
-                            variant="ghost"
-                            aria-label="Edit tentang saya"
-                            onClick={() => setEditing(true)}
+                            className="flex-1"
+                            onClick={save}
                         >
-                            <Pencil />
+                            Simpan
                         </Button>
-                    </CardAction>
-                )}
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center gap-3">
-                    <Avatar size="lg">
-                        <AvatarFallback>{initials || "-"}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                            {data.name}
-                        </p>
-                        <p className="truncate text-sm text-muted-foreground">
-                            {data.role}
-                        </p>
-                    </div>
-                </div>
-                <p className="mt-3 text-sm text-muted-foreground">{data.bio}</p>
-                {data.link && (
-                    <p className="mt-1 truncate text-sm text-muted-foreground">
-                        {data.link}
-                    </p>
-                )}
-            </CardContent>
-        </Card>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
