@@ -1,4 +1,4 @@
-# PRD — Creator Screen
+# PRD - Creator Screen
 
 ## 1. Product Overview
 
@@ -20,12 +20,12 @@ The application is **NOT a video recorder**.
 
 The application is responsible for:
 
-* displaying content;
-* capturing/previewing screen or application windows;
-* displaying a floating camera preview when available;
-* composing visual overlays;
-* switching between predefined scenes;
-* providing a clean fullscreen presentation.
+- displaying content;
+- capturing/previewing screen or application windows;
+- displaying a floating camera preview when available;
+- composing visual overlays;
+- switching between predefined scenes;
+- providing a clean fullscreen presentation.
 
 The user may use a **separate physical smartphone** to record the real-world setup.
 
@@ -55,11 +55,11 @@ Content creators who record coding, tutorials, development sessions, or educatio
 
 Typical setup:
 
-* laptop showing code;
-* creator sitting beside the laptop;
-* smartphone recording the physical scene;
-* small creator/camera overlay;
-* additional information such as timer, title, logo, or keyboard shortcuts.
+- laptop showing code;
+- creator sitting beside the laptop;
+- smartphone recording the physical scene;
+- small creator/camera overlay;
+- additional information such as timer, title, logo, or keyboard shortcuts.
 
 The problem is that normal desktop applications are often designed around recording or streaming rather than simply creating a clean display composition.
 
@@ -84,14 +84,14 @@ Creator Screen focuses specifically on the **visual composition layer**.
 
 ## Secondary Goals
 
-* keyboard shortcuts;
-* persistent layouts;
-* timer;
-* keystroke display;
-* mouse/click effects;
-* branding overlays;
-* customizable backgrounds;
-* reusable scenes.
+- keyboard shortcuts;
+- persistent layouts;
+- timer;
+- keystroke display;
+- mouse/click effects;
+- branding overlays;
+- customizable backgrounds;
+- reusable scenes.
 
 ---
 
@@ -99,16 +99,16 @@ Creator Screen focuses specifically on the **visual composition layer**.
 
 The first version MUST NOT focus on:
 
-* video recording;
-* audio recording;
-* video editing;
-* uploading videos;
-* cloud storage;
-* livestreaming;
-* RTMP streaming;
-* social media publishing;
-* user accounts;
-* multiplayer collaboration.
+- video recording;
+- audio recording;
+- video editing;
+- uploading videos;
+- cloud storage;
+- livestreaming;
+- RTMP streaming;
+- social media publishing;
+- user accounts;
+- multiplayer collaboration.
 
 The application should NOT automatically record the user's screen.
 
@@ -118,12 +118,12 @@ The application should NOT automatically record the user's screen.
 
 Primary:
 
-* programmers;
-* coding content creators;
-* tutorial creators;
-* students;
-* developers making build-in-public content;
-* educators.
+- programmers;
+- coding content creators;
+- tutorial creators;
+- students;
+- developers making build-in-public content;
+- educators.
 
 Example user:
 
@@ -224,21 +224,21 @@ Use the following stack unless a technical limitation requires a documented alte
 
 ## Frontend
 
-* React
-* TypeScript
-* Tailwind CSS
-* **shadcn/ui**
-* Lucide React icons
+- React
+- TypeScript
+- Tailwind CSS
+- **shadcn/ui**
+- Lucide React icons
 
 ## Desktop Runtime
 
 Preferred:
 
-* Tauri
+- Tauri
 
 Alternative only if required:
 
-* Electron
+- Electron
 
 The application should prioritize a lightweight desktop runtime.
 
@@ -246,8 +246,8 @@ The application should prioritize a lightweight desktop runtime.
 
 Prefer:
 
-* React state/context for simple state;
-* Zustand if global state becomes necessary.
+- React state/context for simple state;
+- Zustand if global state becomes necessary.
 
 Do NOT introduce Redux unless there is a strong architectural reason.
 
@@ -255,8 +255,8 @@ Do NOT introduce Redux unless there is a strong architectural reason.
 
 For MVP:
 
-* local JSON/config persistence;
-* or SQLite if desktop-native persistence is needed.
+- local JSON/config persistence;
+- or SQLite if desktop-native persistence is needed.
 
 No cloud backend is required.
 
@@ -272,26 +272,26 @@ Do not create custom versions of components that already exist in shadcn/ui.
 
 Use shadcn/ui components such as:
 
-* Button
-* Dialog
-* Dropdown Menu
-* Context Menu
-* Tooltip
-* Popover
-* Select
-* Slider
-* Switch
-* Tabs
-* Card
-* Input
-* Label
-* Separator
-* Scroll Area
-* Sheet
-* Command
-* Alert Dialog
-* Toast/Sonner
-* Resizable panels where appropriate.
+- Button
+- Dialog
+- Dropdown Menu
+- Context Menu
+- Tooltip
+- Popover
+- Select
+- Slider
+- Switch
+- Tabs
+- Card
+- Input
+- Label
+- Separator
+- Scroll Area
+- Sheet
+- Command
+- Alert Dialog
+- Toast/Sonner
+- Resizable panels where appropriate.
 
 Use Lucide icons.
 
@@ -301,15 +301,15 @@ Use Lucide icons.
 
 Design direction:
 
-* modern;
-* minimal;
-* professional;
-* developer-oriented;
-* dark-first;
-* low visual noise;
-* rounded corners;
-* subtle borders;
-* restrained shadows.
+- modern;
+- minimal;
+- professional;
+- developer-oriented;
+- dark-first;
+- low visual noise;
+- rounded corners;
+- subtle borders;
+- restrained shadows.
 
 Do NOT make it look like a generic admin dashboard.
 
@@ -323,15 +323,15 @@ Use the shadcn theme system.
 
 Primary:
 
-* neutral/dark UI.
+- neutral/dark UI.
 
 Canvas:
 
-* dark background by default.
+- dark background by default.
 
 Accent:
 
-* configurable through theme variables.
+- configurable through theme variables.
 
 Avoid excessive colors.
 
@@ -406,8 +406,8 @@ Example:
 ```text
 Screen Sources
 
-○ Display 1 — 1920 × 1080
-○ Display 2 — 2560 × 1440
+○ Display 1 - 1920 × 1080
+○ Display 2 - 2560 × 1440
 ```
 
 The application displays the selected screen inside the canvas.
@@ -474,18 +474,18 @@ Example data model:
 
 ```ts
 type Overlay = {
-  id: string
-  type: "camera" | "text" | "image" | "timer" | "keystroke"
-  x: number
-  y: number
-  width: number
-  height: number
-  rotation?: number
-  opacity?: number
-  visible: boolean
-  locked?: boolean
-  zIndex: number
-}
+    id: string;
+    type: "camera" | "text" | "image" | "timer" | "keystroke";
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation?: number;
+    opacity?: number;
+    visible: boolean;
+    locked?: boolean;
+    zIndex: number;
+};
 ```
 
 ---
@@ -494,15 +494,15 @@ type Overlay = {
 
 Overlays must support:
 
-* drag;
-* resize;
-* select;
-* delete;
-* duplicate;
-* hide/show;
-* lock/unlock;
-* bring to front;
-* send to back.
+- drag;
+- resize;
+- select;
+- delete;
+- duplicate;
+- hide/show;
+- lock/unlock;
+- bring to front;
+- send to back.
 
 Selected overlays should display a subtle bounding box.
 
@@ -530,26 +530,26 @@ Camera overlay should support:
 
 ### Position
 
-* top-left;
-* top-right;
-* bottom-left;
-* bottom-right;
-* custom.
+- top-left;
+- top-right;
+- bottom-left;
+- bottom-right;
+- custom.
 
 ### Shape
 
-* rectangle;
-* rounded rectangle;
-* circle.
+- rectangle;
+- rounded rectangle;
+- circle.
 
 ### Appearance
 
-* border;
-* border radius;
-* shadow;
-* opacity;
-* mirror;
-* aspect ratio.
+- border;
+- border radius;
+- shadow;
+- opacity;
+- mirror;
+- aspect ratio.
 
 ### Size
 
@@ -570,15 +570,15 @@ Full Stack Developer
 
 Controls:
 
-* text;
-* font size;
-* font weight;
-* alignment;
-* opacity;
-* position;
-* background;
-* padding;
-* border radius.
+- text;
+- font size;
+- font weight;
+- alignment;
+- opacity;
+- position;
+- background;
+- padding;
+- border radius.
 
 Use sensible defaults.
 
@@ -590,18 +590,18 @@ Allow local image selection.
 
 Examples:
 
-* logo;
-* watermark;
-* project logo;
-* social media icon.
+- logo;
+- watermark;
+- project logo;
+- social media icon.
 
 Controls:
 
-* size;
-* position;
-* opacity;
-* border radius;
-* rotation.
+- size;
+- position;
+- opacity;
+- border radius;
+- rotation.
 
 ---
 
@@ -617,16 +617,16 @@ Modes:
 
 Options:
 
-* stopwatch;
-* countdown.
+- stopwatch;
+- countdown.
 
 Controls:
 
-* start;
-* pause;
-* reset;
-* font size;
-* position.
+- start;
+- pause;
+- reset;
+- font size;
+- position.
 
 Timer state should be scene-specific if appropriate.
 
@@ -671,24 +671,24 @@ Break
 
 Each scene stores:
 
-* main source;
-* overlays;
-* overlay positions;
-* sizes;
-* visibility;
-* canvas background;
-* settings.
+- main source;
+- overlays;
+- overlay positions;
+- sizes;
+- visibility;
+- canvas background;
+- settings.
 
 Example:
 
 ```ts
 type Scene = {
-  id: string
-  name: string
-  source: Source
-  overlays: Overlay[]
-  background: Background
-}
+    id: string;
+    name: string;
+    source: Source;
+    overlays: Overlay[];
+    background: Background;
+};
 ```
 
 ---
@@ -701,41 +701,41 @@ On first launch create:
 
 Main:
 
-* Screen/Window source
+- Screen/Window source
 
 Overlay:
 
-* camera top-right
+- camera top-right
 
 ### Browser
 
 Main:
 
-* browser/window source
+- browser/window source
 
 Overlay:
 
-* small camera
+- small camera
 
 ### Terminal
 
 Main:
 
-* terminal/window source
+- terminal/window source
 
 Overlay:
 
-* timer
+- timer
 
 ### Presentation
 
 Main:
 
-* screen source
+- screen source
 
 Overlay:
 
-* logo
+- logo
 
 ---
 
@@ -784,11 +784,11 @@ Ctrl + Shift + F
 
 Fullscreen mode:
 
-* hides editor UI;
-* displays canvas only;
-* preserves overlay positions;
-* keeps source active;
-* prevents accidental editing.
+- hides editor UI;
+- displays canvas only;
+- preserves overlay positions;
+- keeps source active;
+- prevents accidental editing.
 
 Escape exits fullscreen.
 
@@ -814,11 +814,11 @@ Example:
 
 Possible behavior:
 
-* hide editor UI;
-* activate fullscreen;
-* start timer if configured;
-* lock overlays;
-* prevent accidental changes.
+- hide editor UI;
+- activate fullscreen;
+- start timer if configured;
+- lock overlays;
+- prevent accidental changes.
 
 Button:
 
@@ -850,10 +850,10 @@ Example:
 
 Support:
 
-* 16:9;
-* 16:10;
-* 4:3;
-* custom.
+- 16:9;
+- 16:10;
+- 4:3;
+- custom.
 
 The canvas should scale responsively while preserving aspect ratio.
 
@@ -874,8 +874,8 @@ Background
 
 For MVP:
 
-* solid background;
-* configurable color.
+- solid background;
+- configurable color.
 
 ---
 
@@ -896,10 +896,10 @@ LAYERS
 
 Users can:
 
-* reorder;
-* hide;
-* lock;
-* delete.
+- reorder;
+- hide;
+- lock;
+- delete.
 
 Use drag-and-drop if practical.
 
@@ -975,12 +975,12 @@ Editor operations should support undo/redo.
 
 At minimum:
 
-* move overlay;
-* resize overlay;
-* delete;
-* add;
-* reorder;
-* change properties.
+- move overlay;
+- resize overlay;
+- delete;
+- add;
+- reorder;
+- change properties.
 
 ---
 
@@ -990,9 +990,9 @@ Scenes should persist locally.
 
 After restarting the application:
 
-* scenes remain;
-* settings remain;
-* last selected scene can optionally be restored.
+- scenes remain;
+- settings remain;
+- last selected scene can optionally be restored.
 
 No account is required.
 
@@ -1107,11 +1107,11 @@ Provide:
 
 For screen capture:
 
-* request permission only when required.
+- request permission only when required.
 
 For camera:
 
-* request camera permission only when user adds a camera.
+- request camera permission only when user adds a camera.
 
 Do not request unnecessary permissions during startup.
 
@@ -1123,14 +1123,14 @@ The application should feel lightweight.
 
 Requirements:
 
-* smooth dragging;
-* smooth resizing;
-* minimal UI latency;
-* avoid unnecessary re-renders;
-* clean up media streams when removed;
-* stop camera tracks when camera overlay is disabled;
-* avoid memory leaks;
-* avoid continuously processing frames when not needed.
+- smooth dragging;
+- smooth resizing;
+- minimal UI latency;
+- avoid unnecessary re-renders;
+- clean up media streams when removed;
+- stop camera tracks when camera overlay is disabled;
+- avoid memory leaks;
+- avoid continuously processing frames when not needed.
 
 ---
 
@@ -1158,11 +1158,11 @@ The canvas should adapt without breaking the sidebar/property panel.
 
 Use:
 
-* keyboard navigation;
-* visible focus states;
-* accessible labels;
-* tooltips;
-* proper button semantics.
+- keyboard navigation;
+- visible focus states;
+- accessible labels;
+- tooltips;
+- proper button semantics.
 
 All icon-only buttons must have accessible labels.
 
@@ -1176,10 +1176,10 @@ The application should prioritize local processing.
 
 Do not:
 
-* upload screen content;
-* upload camera feed;
-* upload screenshots;
-* collect recording data.
+- upload screen content;
+- upload camera feed;
+- upload screenshots;
+- collect recording data.
 
 Camera and screen streams should remain local.
 
@@ -1191,21 +1191,21 @@ The first implementation should contain ONLY:
 
 ### Core
 
-* desktop application;
-* dark UI;
-* shadcn/ui;
-* canvas;
-* screen source;
-* camera source;
-* floating camera;
-* drag;
-* resize;
-* delete;
-* hide/show;
-* lock;
-* scene system;
-* fullscreen;
-* local persistence.
+- desktop application;
+- dark UI;
+- shadcn/ui;
+- canvas;
+- screen source;
+- camera source;
+- floating camera;
+- drag;
+- resize;
+- delete;
+- hide/show;
+- lock;
+- scene system;
+- fullscreen;
+- local persistence.
 
 ### MVP UI
 
@@ -1231,15 +1231,15 @@ Do NOT over-engineer MVP.
 
 After MVP works:
 
-* window capture;
-* text overlay;
-* image overlay;
-* timer;
-* layer manager;
-* keyboard shortcuts;
-* undo/redo;
-* scene duplication;
-* custom canvas ratios.
+- window capture;
+- text overlay;
+- image overlay;
+- timer;
+- layer manager;
+- keyboard shortcuts;
+- undo/redo;
+- scene duplication;
+- custom canvas ratios.
 
 ---
 
@@ -1247,16 +1247,16 @@ After MVP works:
 
 Advanced features:
 
-* keystroke display;
-* mouse highlight;
-* click animations;
-* animated overlays;
-* transition between scenes;
-* hotkeys;
-* custom templates;
-* multi-monitor workflow;
-* automatic scene switching;
-* presentation mode.
+- keystroke display;
+- mouse highlight;
+- click animations;
+- animated overlays;
+- transition between scenes;
+- hotkeys;
+- custom templates;
+- multi-monitor workflow;
+- automatic scene switching;
+- presentation mode.
 
 ---
 
@@ -1264,12 +1264,12 @@ Advanced features:
 
 Optional future features:
 
-* plugin system;
-* community templates;
-* cloud sync;
-* export/import scenes;
-* OBS integration;
-* streaming integrations.
+- plugin system;
+- community templates;
+- cloud sync;
+- export/import scenes;
+- OBS integration;
+- streaming integrations.
 
 These are NOT part of the MVP.
 
@@ -1392,62 +1392,62 @@ This is the fundamental product concept.
 
 ---
 
-# 51. Acceptance Criteria — MVP
+# 51. Acceptance Criteria - MVP
 
 The MVP is considered successful when:
 
 ### Canvas
 
-* [ ] Main canvas renders correctly.
-* [ ] Canvas supports 16:9.
-* [ ] Canvas scales without distortion.
+- [ ] Main canvas renders correctly.
+- [ ] Canvas supports 16:9.
+- [ ] Canvas scales without distortion.
 
 ### Screen Source
 
-* [ ] User can select a screen.
-* [ ] Selected screen appears in the canvas.
-* [ ] Screen preview updates correctly.
-* [ ] Removing source stops the stream.
+- [ ] User can select a screen.
+- [ ] Selected screen appears in the canvas.
+- [ ] Screen preview updates correctly.
+- [ ] Removing source stops the stream.
 
 ### Camera
 
-* [ ] User can select a camera.
-* [ ] Camera preview appears.
-* [ ] Camera is a floating overlay.
-* [ ] Camera can be dragged.
-* [ ] Camera can be resized.
-* [ ] Camera can be hidden.
-* [ ] Camera can be locked.
-* [ ] Camera stream is stopped when removed.
+- [ ] User can select a camera.
+- [ ] Camera preview appears.
+- [ ] Camera is a floating overlay.
+- [ ] Camera can be dragged.
+- [ ] Camera can be resized.
+- [ ] Camera can be hidden.
+- [ ] Camera can be locked.
+- [ ] Camera stream is stopped when removed.
 
 ### Scenes
 
-* [ ] User can create scene.
-* [ ] User can rename scene.
-* [ ] User can switch scenes.
-* [ ] Scene stores source.
-* [ ] Scene stores overlay positions.
-* [ ] Scene persists after restart.
+- [ ] User can create scene.
+- [ ] User can rename scene.
+- [ ] User can switch scenes.
+- [ ] Scene stores source.
+- [ ] Scene stores overlay positions.
+- [ ] Scene persists after restart.
 
 ### Fullscreen
 
-* [ ] Fullscreen hides editor UI.
-* [ ] Canvas fills the available screen.
-* [ ] Escape exits fullscreen.
+- [ ] Fullscreen hides editor UI.
+- [ ] Canvas fills the available screen.
+- [ ] Escape exits fullscreen.
 
 ### Session
 
-* [ ] Start Session enters presentation state.
-* [ ] Session does not create a video file.
-* [ ] End Session returns to editor.
+- [ ] Start Session enters presentation state.
+- [ ] Session does not create a video file.
+- [ ] End Session returns to editor.
 
 ### UI
 
-* [ ] shadcn/ui is used throughout the application UI.
-* [ ] Lucide icons are used.
-* [ ] Dark theme works.
-* [ ] Keyboard navigation works.
-* [ ] No unnecessary custom UI component library is introduced.
+- [ ] shadcn/ui is used throughout the application UI.
+- [ ] Lucide icons are used.
+- [ ] Dark theme works.
+- [ ] Keyboard navigation works.
+- [ ] No unnecessary custom UI component library is introduced.
 
 ---
 
@@ -1482,7 +1482,7 @@ When implementing this project:
 
 OpenCode should implement in this order:
 
-## Phase 1 — Foundation
+## Phase 1 - Foundation
 
 1. Initialize project.
 2. Configure TypeScript.
@@ -1492,7 +1492,7 @@ OpenCode should implement in this order:
 6. Create application shell.
 7. Create dark theme.
 
-## Phase 2 — Canvas
+## Phase 2 - Canvas
 
 1. Create canvas.
 2. Create canvas scaling.
@@ -1500,14 +1500,14 @@ OpenCode should implement in this order:
 4. Create sidebar.
 5. Create properties panel.
 
-## Phase 3 — Sources
+## Phase 3 - Sources
 
 1. Implement screen source.
 2. Implement source selector.
 3. Implement media stream lifecycle.
 4. Implement camera source.
 
-## Phase 4 — Floating Overlay
+## Phase 4 - Floating Overlay
 
 1. Overlay model.
 2. Dragging.
@@ -1517,7 +1517,7 @@ OpenCode should implement in this order:
 6. Visibility.
 7. Delete.
 
-## Phase 5 — Scenes
+## Phase 5 - Scenes
 
 1. Scene model.
 2. Scene creation.
@@ -1525,13 +1525,13 @@ OpenCode should implement in this order:
 4. Scene persistence.
 5. Default scenes.
 
-## Phase 6 — Fullscreen
+## Phase 6 - Fullscreen
 
 1. Fullscreen.
 2. Presentation mode.
 3. Session mode.
 
-## Phase 7 — Polish
+## Phase 7 - Polish
 
 1. Keyboard shortcuts.
 2. Loading states.
@@ -1574,11 +1574,11 @@ Code / create content
 
 without needing:
 
-* OBS;
-* a recording feature inside Creator Screen;
-* a phone connection;
-* cloud services;
-* an account.
+- OBS;
+- a recording feature inside Creator Screen;
+- a phone connection;
+- cloud services;
+- an account.
 
 ---
 

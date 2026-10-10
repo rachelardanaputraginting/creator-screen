@@ -408,11 +408,11 @@ export default function EditorLayout() {
     const hasScreen = source?.type === "screen" && screenOn;
 
     const screenPreview = (
-        <Card className="w-full">
-            <CardContent>
+        <Card className="w-full py-0">
+            <CardContent className="p-0">
                 <AspectRatio
                     ratio={16 / 9}
-                    className="overflow-hidden rounded-md bg-muted"
+                    className="overflow-hidden rounded-md h-fit bg-red-500"
                 >
                     {hasScreen ? (
                         <video
@@ -564,10 +564,7 @@ export default function EditorLayout() {
                     {cameraCard}
                 </div>
                 <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
-                    <Button
-                        variant="secondary"
-                        onClick={handleEndSession}
-                    >
+                    <Button variant="secondary" onClick={handleEndSession}>
                         <Square /> End session (Esc)
                     </Button>
                 </div>
@@ -577,7 +574,7 @@ export default function EditorLayout() {
 
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <header className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
+            <header className="flex items-center justify-between gap-4 px-4 py-3 sm:px-4">
                 <div>
                     <h1 className="text-lg font-semibold tracking-tight">
                         Creator Screen
@@ -614,7 +611,7 @@ export default function EditorLayout() {
             <Separator />
 
             {mediaError && (
-                <div className="px-4 pt-4 sm:px-6">
+                <div className="px-4 pt-4 sm:px-4">
                     <Alert variant="destructive">
                         <AlertTitle>Something went wrong</AlertTitle>
                         <AlertDescription>{mediaError}</AlertDescription>
@@ -632,7 +629,7 @@ export default function EditorLayout() {
             )}
 
             {recorder.error && (
-                <div className="px-4 pt-4 sm:px-6">
+                <div className="px-4 pt-4 sm:px-4">
                     <Alert variant="destructive">
                         <AlertTitle>Recording gagal</AlertTitle>
                         <AlertDescription>{recorder.error}</AlertDescription>
@@ -650,7 +647,7 @@ export default function EditorLayout() {
             )}
 
             {recordNotice && (
-                <div className="px-4 pt-4 sm:px-6">
+                <div className="px-4 pt-4 sm:px-4">
                     <Alert>
                         <AlertDescription>{recordNotice}</AlertDescription>
                         <AlertAction>
@@ -667,7 +664,7 @@ export default function EditorLayout() {
             )}
 
             <div className="flex min-h-[calc(100vh-140px)]">
-                <main className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:px-6">
+                <main className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:px-4">
                     <div className="flex flex-wrap items-center gap-2">
                         <Tabs
                             value={currentScene?.id ?? ""}
@@ -773,7 +770,7 @@ export default function EditorLayout() {
             </div>
 
             <Separator />
-            <footer className="flex items-center justify-between gap-4 px-4 py-2 text-sm text-muted-foreground sm:px-6">
+            <footer className="flex items-center justify-between gap-4 px-4 py-2 text-sm text-muted-foreground sm:px-4">
                 <span>
                     {isSessionActive
                         ? "Session active"

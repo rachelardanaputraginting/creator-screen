@@ -22,7 +22,7 @@ function Command({
         <CommandPrimitive
             data-slot="command"
             className={cn(
-                "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
+                "flex size-full flex-col overflow-hidden rounded-md! bg-popover p-1 text-popover-foreground",
                 className,
             )}
             {...props}
@@ -52,7 +52,7 @@ function CommandDialog({
             </DialogHeader>
             <DialogContent
                 className={cn(
-                    "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
+                    "top-1/3 translate-y-0 overflow-hidden rounded-md! p-0",
                     className,
                 )}
                 showCloseButton={showCloseButton}
@@ -109,7 +109,7 @@ function CommandEmpty({
     return (
         <CommandPrimitive.Empty
             data-slot="command-empty"
-            className={cn("py-6 text-center text-sm", className)}
+            className={cn("py-4 text-center text-sm", className)}
             {...props}
         />
     );

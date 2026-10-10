@@ -1,4 +1,4 @@
-# Creator Screen — Stage Recording + Marquee di Fullscreen + Theme Toggle + Mic
+# Creator Screen - Stage Recording + Marquee di Fullscreen + Theme Toggle + Mic
 
 - Date: 2026-10-09
 - Status: draft, awaiting user review of this file
@@ -7,8 +7,8 @@
 
 ## 1. Intent
 
-- Yang direkam adalah tampilan stage Creator Screen itu sendiri — komposisi
-  layar + panel info (nama/role/bio/link) + wajah kamera — bukan source layar
+- Yang direkam adalah tampilan stage Creator Screen itu sendiri - komposisi
+  layar + panel info (nama/role/bio/link) + wajah kamera - bukan source layar
   mentah yang dibagikan. Itu alasan panel info + kamera ada di kanan.
 - Marquee tech-stack tetap tampil di fullscreen/presentation, tidak hilang.
 - Toggle dark/light mode tersedia di header, pilihan persist.
@@ -23,11 +23,11 @@
 - Recorder hook dirombak dari composite screen+PiP menjadi stage renderer:
   hidden canvas 1920x1080 menggambar replika stage aplikasi tiap frame via
   `requestAnimationFrame` (hanya saat recording):
-  1. Area kiri (0..1560): screen video contain-fit dengan padding, letterbox.
-  2. Panel kanan (1560..1920): teks info (nama bold, role, bio wrap, link)
-     dibaca dari storage yang sama dengan AboutPanel, lalu kamera di bawah
-     teks info (cover-fit). Tidak ada toolbar/marquee/tombol yang ikut
-     digambar — itu editor chrome, bukan stage.
+    1. Area kiri (0..1560): screen video contain-fit dengan padding, letterbox.
+    2. Panel kanan (1560..1920): teks info (nama bold, role, bio wrap, link)
+       dibaca dari storage yang sama dengan AboutPanel, lalu kamera di bawah
+       teks info (cover-fit). Tidak ada toolbar/marquee/tombol yang ikut
+       digambar - itu editor chrome, bukan stage.
 - About data dibaca via helper bersama `readAbout()` (localStorage key
   `creator-screen-about` + defaults sama); dibaca ulang tiap 2 detik saat
   recording agar edit nama tengah jalan ikut ke file.
@@ -36,7 +36,7 @@
 - Mic: `getUserMedia({ video: false, audio: true })` on-demand saat mic on;
   `AudioContext` -> `MediaStreamDestination`; saat `start()`, jika mic on,
   stream yang direkam = `new MediaStream([...canvasStream.getVideoTracks(),
-  ...dest.stream.getAudioTracks()])`. Mic off = video-only seperti sekarang.
+...dest.stream.getAudioTracks()])`. Mic off = video-only seperti sekarang.
   `AudioContext.close()` + stop track saat mic off.
 - Theme: komponen `ThemeToggle` toggle class `dark` di `documentElement`,
   persist `localStorage` (`creator-screen-theme`, default dark). `layout.tsx`
@@ -52,7 +52,7 @@
 - Tambah gambar panel kanan: teks + kamera (posisi kamera pindah dari
   kanan-bawah overlay menjadi panel kanan di bawah teks info).
 - Input hook bertambah: `about: { name, role, bio, link }` (dibaca caller)
-  atau hook membaca sendiri via helper — putuskan: caller (`editor-layout`)
+  atau hook membaca sendiri via helper - putuskan: caller (`editor-layout`)
   yang membaca + me-refresh tiap 2 detik lebih transparan untuk testing.
   Pilih: hook terima `getAbout: () => AboutData` agar drawing loop selalu
   fresh tanpa re-render. Sederhana: hook import `readAbout` langsung.
@@ -64,7 +64,7 @@
   agar edit nama tengah rekam ikut ke file tanpa re-render.
 - Batasan tetap: 1080p, ~30fps, 8 Mbps, filename sama.
 - Assumption (koreksi saat review bila salah): toolbar, marquee, dan tombol
-  tidak ikut direkam — hanya stage (layar + panel info + kamera).
+  tidak ikut direkam - hanya stage (layar + panel info + kamera).
 
 ### Baru: `app/lib/about.ts`
 
@@ -88,7 +88,7 @@
   State `micOn`, `micStreamRef`, `handleEnableMic`/`handleStopMic`
   (+ `ended` listener auto-stop mic).
 - Record bar: syarat tetap layar+kamera; hint mic opsional
-  ("Mic off — file tanpa suara").
+  ("Mic off - file tanpa suara").
 - Mic mati tengah rekam: hentikan rekaman parsial + notice, sama pola
   stream-death (mengganti track live di MediaRecorder tidak didukung
   andal).
@@ -109,7 +109,7 @@
 - Video-only saat mic off; mic on tapi start gagal -> error Alert dan
   recording ditolak mulai (eksplisit; minta ubah saat review bila ingin
   video-only + notice).
-- Liveness guard diperluas ke mic? Tidak perlu — mic opsional.
+- Liveness guard diperluas ke mic? Tidak perlu - mic opsional.
 - Theme: default dark bila belum ada pilihan tersimpan.
 - Marquee di fullscreen: layout kolom preview + marquee + sidebar tetap;
   di layar kecil sidebar boleh scroll (perilaku sekarang).

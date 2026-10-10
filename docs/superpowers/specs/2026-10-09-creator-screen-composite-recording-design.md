@@ -1,7 +1,7 @@
-# Creator Screen — Content-Focused Layout + Composite HD Recording + Tech Marquee
+# Creator Screen - Content-Focused Layout + Composite HD Recording + Tech Marquee
 
 - Date: 2026-10-09
-- Approach: A (approved) — composite canvas + CSS marquee, no new dependencies
+- Approach: A (approved) - composite canvas + CSS marquee, no new dependencies
 - Status: draft, awaiting user review of this file
 
 ## 1. Intent
@@ -21,9 +21,9 @@
 - New hidden compositor: `<canvas width=1920 height=1080>` (not displayed).
 - New hook `useCompositeRecorder` owns the render loop and `MediaRecorder`.
 - Render loop (`requestAnimationFrame`):
-  1. Draw screen video frame full-bleed with contain-fit on muted background.
-  2. Draw camera video frame as fixed PiP 480x270 bottom-right with mirror option.
-  3. No marquee, sidebar, or header is drawn — recording is content only.
+    1. Draw screen video frame full-bleed with contain-fit on muted background.
+    2. Draw camera video frame as fixed PiP 480x270 bottom-right with mirror option.
+    3. No marquee, sidebar, or header is drawn - recording is content only.
 - Output: `canvas.captureStream(30)` into `MediaRecorder` with mimeType fallback
   `video/webm;codecs=vp9` -> `video/webm;codecs=vp8` -> `video/webm` -> default.
 - Layout: left content column (compact toolbar, 16:9 preview card, marquee card,
@@ -80,11 +80,11 @@ Blob `.webm` -> object URL -> auto-download + manual Download button.
 
 - `npm run build` passes.
 - Manual checklist:
-  1. Record disabled without both streams, enabled with both.
-  2. 5-second recording produces downloadable playable `.webm`.
-  3. Mirror toggle is reflected in the recorded PiP.
-  4. Mid-record share-stop auto-saves partial file with notice.
-  5. Marquee loops seamlessly, pauses on hover, static under reduced motion.
-  6. No custom colors introduced (grep for `bg-black`, `text-neutral-`,
-     `border-white`, `bg-neutral`, `text-gray-` in `app/` returns nothing new).
+    1. Record disabled without both streams, enabled with both.
+    2. 5-second recording produces downloadable playable `.webm`.
+    3. Mirror toggle is reflected in the recorded PiP.
+    4. Mid-record share-stop auto-saves partial file with notice.
+    5. Marquee loops seamlessly, pauses on hover, static under reduced motion.
+    6. No custom colors introduced (grep for `bg-black`, `text-neutral-`,
+       `border-white`, `bg-neutral`, `text-gray-` in `app/` returns nothing new).
 - No automated tests exist in this repo; none added (matches current workflow).
