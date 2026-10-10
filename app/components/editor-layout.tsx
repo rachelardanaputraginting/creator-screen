@@ -32,6 +32,16 @@ import {
     AlertDescription,
     AlertTitle,
 } from "@/components/ui/alert";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import AboutPanel from "./about-panel";
 import TechMarquee from "./tech-marquee";
 import ThemeToggle from "./theme-toggle";
@@ -218,11 +228,6 @@ export default function EditorLayout() {
         }
     }, [cameraOn]);
 
-    const stageRef = useRef<HTMLElement | null>(null);
-    const attachStage = useCallback((node: HTMLElement | null) => {
-        stageRef.current = node;
-    }, []);
-
     const attachScreenVideo = useCallback((node: HTMLVideoElement | null) => {
         screenVideoRef.current = node;
     }, []);
@@ -231,10 +236,7 @@ export default function EditorLayout() {
         cameraVideoRef.current = node;
     }, []);
 
-    const getStageEl = useCallback(() => stageRef.current, []);
-
     const recorder = useStageRecorder({
-        getStageEl,
         micStream,
     });
     const recording = recorder.status === "recording";
@@ -603,7 +605,7 @@ export default function EditorLayout() {
                             )
                         }
                     >
-                        <Download /> Download .webm
+                        <Download /> .webm
                     </Button>
                 )}
                 {!recording && (
@@ -611,7 +613,8 @@ export default function EditorLayout() {
                         {currentScene
                             ? `Scene: ${currentScene.name}`
                             : "Editor mode"}
-                        {!micOn && " · Mic off"} · Pilih tab ini · Esc stop
+                        {!micOn && " · Mic off"} · Otomatis fullscreen ·
+                        pilih Entire Screen · Esc stop
                     </p>
                 )}
             </CardContent>
@@ -619,7 +622,7 @@ export default function EditorLayout() {
     );
 
     const sidebar = (
-        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
+        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4 py-0">
             <AboutPanel />
             {cameraCard}
             {recordCard}
@@ -628,10 +631,7 @@ export default function EditorLayout() {
 
     if (presentation) {
         return (
-            <div
-                ref={attachStage}
-                className="flex h-screen w-screen overflow-hidden bg-background"
-            >
+            <div className="flex h-screen w-screen overflow-hidden bg-background">
                 {isSessionActive && (
                     <div className="absolute left-4 top-3 z-20 no-record">
                         <Badge variant="destructive">Session active</Badge>
@@ -657,10 +657,7 @@ export default function EditorLayout() {
     }
 
     return (
-        <div
-            ref={attachStage}
-            className="flex h-screen flex-col overflow-hidden bg-background text-foreground"
-        >
+        <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
             <header className="flex items-center justify-between gap-4 px-4 py-2 sm:px-4">
                 <div>
                     <h1 className="text-lg font-semibold tracking-tight">
@@ -712,40 +709,58 @@ export default function EditorLayout() {
                 </div>
             )}
 
-            {recorder.error && (
-                <div className="px-4 pt-4 sm:px-4">
-                    <Alert variant="destructive">
-                        <AlertTitle>Recording gagal</AlertTitle>
-                        <AlertDescription>{recorder.error}</AlertDescription>
-                        <AlertAction>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => recorder.clearError()}
-                            >
-                                Dismiss
-                            </Button>
-                        </AlertAction>
-                    </Alert>
-                </div>
-            )}
+            <AlertDialog
+                open={recorder.error !== null}
+                onOpenChange={(open) => {
+                    if (!open) recorder.clearError();
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Recording gagal</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {recorder.error}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Mengerti</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
-            {recordNotice && (
-                <div className="px-4 pt-4 sm:px-4">
-                    <Alert>
-                        <AlertDescription>{recordNotice}</AlertDescription>
-                        <AlertAction>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setRecordNotice(null)}
+            <AlertDialog
+                open={recordNotice !== null}
+                onOpenChange={(open) => {
+                    if (!open) setRecordNotice(null);
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Rekaman tersimpan</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {recordNotice}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        {recorder.blobUrl && (
+                            <AlertDialogAction
+                                onClick={() => {
+                                    if (recorder.blobUrl) {
+                                        downloadRecording(
+                                            recorder.blobUrl,
+                                            recorder.fileName,
+                                        );
+                                    }
+                                    setRecordNotice(null);
+                                }}
                             >
-                                Dismiss
-                            </Button>
-                        </AlertAction>
-                    </Alert>
-                </div>
-            )}
+                                Download .webm
+                            </AlertDialogAction>
+                        )}
+                        <AlertDialogCancel>Mengerti</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <div className="flex min-h-0 flex-1">
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 sm:px-4">

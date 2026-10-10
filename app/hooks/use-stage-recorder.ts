@@ -19,7 +19,6 @@ function safeSupported(mime: string) {
 }
 
 interface StageRecorderArgs {
-    getStageEl: () => HTMLElement | null;
     micStream: MediaStream | null;
 }
 
@@ -29,6 +28,7 @@ interface ActiveRecording {
     recorder: MediaRecorder;
     chunks: Blob[];
     startedAt: number;
+    ownFullscreen: boolean;
 }
 
 function pad(n: number) {
@@ -39,20 +39,7 @@ function fileNameFor(date: Date) {
     return `creator-screen-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.webm`;
 }
 
-function getCropTargetApi():
-    | { fromElement: (el: Element) => Promise<unknown> }
-    | undefined {
-    return (
-        globalThis as unknown as {
-            CropTarget?: { fromElement: (el: Element) => Promise<unknown> };
-        }
-    ).CropTarget;
-}
-
-export function useStageRecorder({
-    getStageEl,
-    micStream,
-}: StageRecorderArgs): {
+export function useStageRecorder({ micStream }: StageRecorderArgs): {
     status: "idle" | "recording";
     elapsedMs: number;
     error: string | null;
@@ -102,17 +89,21 @@ export function useStageRecorder({
             setError("Browser tidak mendukung perekaman video.");
             return;
         }
-        const CropTargetApi = getCropTargetApi();
-        if (!CropTargetApi) {
+        if (
+            !navigator.mediaDevices?.getDisplayMedia ||
+            typeof document === "undefined"
+        ) {
             setError(
-                "Browser tidak mendukung perekaman stage. Gunakan Chrome/Edge terbaru.",
+                "Berbagi layar tidak didukung di browser ini. Gunakan Chrome/Edge terbaru di desktop.",
             );
             return;
         }
-        const stageEl = getStageEl();
-        if (!stageEl) {
-            setError("Stage tidak siap. Coba lagi.");
-            return;
+
+        const ownFullscreen = !document.fullscreenElement;
+        try {
+            await document.documentElement.requestFullscreen();
+        } catch {
+            /* lanjut tanpa fullscreen */
         }
 
         let shareStream: MediaStream;
@@ -120,8 +111,7 @@ export function useStageRecorder({
             shareStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
                 audio: false,
-                preferCurrentTab: true,
-            } as DisplayMediaStreamOptions);
+            });
         } catch (e) {
             const name =
                 e instanceof DOMException
@@ -140,24 +130,9 @@ export function useStageRecorder({
             setError("Gagal memulai berbagi layar.");
             return;
         }
-        if (track.getSettings().displaySurface !== "browser") {
+        if (track.getSettings().displaySurface !== "monitor") {
             shareStream.getTracks().forEach((t) => t.stop());
-            setError(
-                "Pilih tab browser (tab Creator Screen ini), bukan window/layar.",
-            );
-            return;
-        }
-
-        try {
-            const cropTarget = await CropTargetApi.fromElement(stageEl);
-            await (
-                track as unknown as {
-                    cropTo: (t: unknown) => Promise<void>;
-                }
-            ).cropTo(cropTarget);
-        } catch {
-            shareStream.getTracks().forEach((t) => t.stop());
-            setError("Pilih tab Creator Screen ini lalu coba lagi.");
+            setError("Pilih Entire Screen, bukan tab/window.");
             return;
         }
 
@@ -208,14 +183,10 @@ export function useStageRecorder({
             recorder,
             chunks,
             startedAt,
+            ownFullscreen,
         };
         recRef.current = rec;
 
-        track.onmute = () => {
-            if (recRef.current === rec) {
-                setNotice("Tab tidak aktif — frame berhenti.");
-            }
-        };
         track.onended = () => {
             if (recRef.current === rec) {
                 try {
@@ -257,7 +228,7 @@ export function useStageRecorder({
             return;
         }
         setStatus("recording");
-    }, [getStageEl, micStream, teardown, stopOwnedTracks]);
+    }, [micStream, teardown, stopOwnedTracks]);
 
     const stop = useCallback(() => {
         const rec = recRef.current;
@@ -275,6 +246,9 @@ export function useStageRecorder({
             stopOwnedTracks(rec);
             recRef.current = null;
             setStatus("idle");
+        }
+        if (rec.ownFullscreen && document.fullscreenElement) {
+            void document.exitFullscreen().catch(() => {});
         }
         return null;
     }, [stopOwnedTracks]);
