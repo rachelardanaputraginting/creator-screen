@@ -628,7 +628,7 @@ export default function EditorLayout() {
     );
 
     const sidebar = (
-        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
+        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
             <AboutPanel />
             {cameraCard}
             {statusCard}
@@ -652,8 +652,7 @@ export default function EditorLayout() {
                         {screenPreview}
                         <TechMarquee />
                     </div>
-                    <Separator orientation="vertical" />
-                    <div className="flex min-h-0 w-[280px] shrink-0 flex-col gap-4 overflow-y-auto p-4">
+                    <div className="flex min-h-0 w-[280px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
                         <AboutPanel clean />
                         {cameraCard}
                     </div>
@@ -760,8 +759,8 @@ export default function EditorLayout() {
 
             <div className="flex min-h-0 flex-1">
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 sm:px-4">
-                    <div className="flex min-h-0 flex-1 gap-4">
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+                    <div className="flex min-h-0 flex-1 gap-0">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto pr-4">
                             <div className="flex flex-wrap items-center gap-2 no-record">
                                 <Tabs
                                     value={currentScene?.id ?? ""}
@@ -802,7 +801,6 @@ export default function EditorLayout() {
                             {screenPreview}
                             <TechMarquee />
                         </div>
-                        <Separator orientation="vertical" />
                         {sidebar}
                     </div>
                 </main>
