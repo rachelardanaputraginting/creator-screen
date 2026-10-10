@@ -34,7 +34,7 @@ import {
 import AboutPanel from "./about-panel";
 import TechMarquee from "./tech-marquee";
 import ThemeToggle from "./theme-toggle";
-import { useCompositeRecorder } from "@/app/hooks/use-composite-recorder";
+import { useStageRecorder } from "@/app/hooks/use-stage-recorder";
 import {
     MonitorUp,
     MonitorOff,
@@ -122,12 +122,6 @@ export default function EditorLayout() {
     const [micOn, setMicOn] = useState(false);
     const [micStream, setMicStream] = useState<MediaStream | null>(null);
     const [mirror, setMirror] = useState(true);
-    const [screenVideoEl, setScreenVideoEl] = useState<HTMLVideoElement | null>(
-        null,
-    );
-    const [cameraVideoEl, setCameraVideoEl] = useState<HTMLVideoElement | null>(
-        null,
-    );
     const screenVideoRef = useRef<HTMLVideoElement | null>(null);
     const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
     const screenStreamRef = useRef<MediaStream | null>(null);
@@ -219,30 +213,26 @@ export default function EditorLayout() {
         }
     }, [cameraOn]);
 
-    const recorder = useCompositeRecorder({
-        screenVideo: screenVideoEl,
-        cameraVideo: cameraVideoEl,
-        mirror,
+    const stageRef = useRef<HTMLElement | null>(null);
+    const attachStage = useCallback((node: HTMLElement | null) => {
+        stageRef.current = node;
+    }, []);
+
+    const attachScreenVideo = useCallback((node: HTMLVideoElement | null) => {
+        screenVideoRef.current = node;
+    }, []);
+
+    const attachCameraVideo = useCallback((node: HTMLVideoElement | null) => {
+        cameraVideoRef.current = node;
+    }, []);
+
+    const recorder = useStageRecorder({
+        stageEl: stageRef.current,
         micStream,
     });
     const recording = recorder.status === "recording";
     const statusRef = useRef(recorder.status);
     statusRef.current = recorder.status;
-
-    const attachScreenVideo = useCallback((node: HTMLVideoElement | null) => {
-        screenVideoRef.current = node;
-        setScreenVideoEl(node);
-    }, []);
-
-    const attachCameraVideo = useCallback((node: HTMLVideoElement | null) => {
-        cameraVideoRef.current = node;
-        setCameraVideoEl(node);
-    }, []);
-
-    const stageRef = useRef<HTMLElement | null>(null);
-    const attachStage = useCallback((node: HTMLElement | null) => {
-        stageRef.current = node;
-    }, []);
 
     const downloadRecording = useCallback((url: string, name: string) => {
         const a = document.createElement("a");
@@ -260,6 +250,14 @@ export default function EditorLayout() {
             downloadRecording(recorder.blobUrl, recorder.fileName);
         }
     }, [recorder.blobUrl, recorder.fileName, downloadRecording]);
+
+    useEffect(() => {
+        if (recorder.notice) {
+            setRecordNotice(recorder.notice);
+            recorder.clearNotice();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [recorder.notice]);
 
     const stopScreenTracks = useCallback(() => {
         if (statusRef.current === "recording") {
@@ -590,7 +588,7 @@ export default function EditorLayout() {
                         Creator Screen
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Rekam layar + kamera gabungan 1080p langsung di browser.
+                        Rekam stage 1080p langsung — pilih tab ini.
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -743,21 +741,15 @@ export default function EditorLayout() {
                                     <Button
                                         size="sm"
                                         onClick={() => recorder.start()}
-                                        disabled={!screenOn || !cameraOn}
                                     >
                                         <Circle className="fill-current" />{" "}
                                         Record HD
                                     </Button>
-                                    {(!screenOn || !cameraOn) && (
-                                        <p className="text-xs text-muted-foreground">
-                                            {!screenOn && !cameraOn
-                                                ? "Aktifkan layar dan kamera untuk merekam."
-                                                : !screenOn
-                                                  ? "Aktifkan layar untuk merekam."
-                                                  : "Aktifkan kamera untuk merekam."}
-                                        </p>
-                                    )}
-                                    {!micOn && (screenOn || cameraOn) && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Pilih tab Creator Screen ini di dialog
+                                        berikutnya.
+                                    </p>
+                                    {!micOn && (
                                         <p className="text-xs text-muted-foreground">
                                             Mic off - file tanpa suara.
                                         </p>
