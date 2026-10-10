@@ -194,6 +194,7 @@ export default function EditorLayout() {
             }
             if (e.key === "Escape" && useStore.getState().isSessionActive) {
                 useStore.getState().setIsSessionActive(false);
+                useStore.getState().setIsFullscreen(false);
                 void exitFullscreen();
                 return;
             }
@@ -420,8 +421,9 @@ export default function EditorLayout() {
 
     const handleEndSession = useCallback(() => {
         setIsSessionActive(false);
+        setIsFullscreen(false);
         void exitFullscreen();
-    }, [setIsSessionActive, exitFullscreen]);
+    }, [setIsSessionActive, setIsFullscreen, exitFullscreen]);
 
     const presentation = isFullscreen || isSessionActive;
     const hasScreen = source?.type === "screen" && screenOn;
