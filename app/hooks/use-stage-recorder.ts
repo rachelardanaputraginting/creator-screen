@@ -19,7 +19,7 @@ function safeSupported(mime: string) {
 }
 
 interface StageRecorderArgs {
-    stageEl: HTMLElement | null;
+    getStageEl: () => HTMLElement | null;
     micStream: MediaStream | null;
 }
 
@@ -50,7 +50,7 @@ function getCropTargetApi():
 }
 
 export function useStageRecorder({
-    stageEl,
+    getStageEl,
     micStream,
 }: StageRecorderArgs): {
     status: "idle" | "recording";
@@ -109,18 +109,11 @@ export function useStageRecorder({
             );
             return;
         }
+        const stageEl = getStageEl();
         if (!stageEl) {
-            setError("Stage tidak siap. Tutup dialog ini dan coba lagi.");
+            setError("Stage tidak siap. Coba lagi.");
             return;
         }
-
-        setError(null);
-        setBlobUrl((prev) => {
-            if (prev) URL.revokeObjectURL(prev);
-            return null;
-        });
-        blobRef.current = null;
-        setElapsedMs(0);
 
         let shareStream: MediaStream;
         try {
@@ -130,10 +123,11 @@ export function useStageRecorder({
                 preferCurrentTab: true,
             } as DisplayMediaStreamOptions);
         } catch (e) {
-            if (
-                e instanceof DOMException &&
-                (e.name === "NotAllowedError" || e.name === "AbortError")
-            ) {
+            const name =
+                e instanceof DOMException
+                    ? e.name
+                    : (e as { name?: string } | null)?.name;
+            if (name === "NotAllowedError" || name === "AbortError") {
                 return;
             }
             setError("Gagal memulai berbagi layar.");
@@ -166,6 +160,14 @@ export function useStageRecorder({
             setError("Pilih tab Creator Screen ini lalu coba lagi.");
             return;
         }
+
+        setError(null);
+        setBlobUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+        });
+        blobRef.current = null;
+        setElapsedMs(0);
 
         const mime = MIME_FALLBACK.find((m) => safeSupported(m));
         if (mime === undefined) {
@@ -255,7 +257,7 @@ export function useStageRecorder({
             return;
         }
         setStatus("recording");
-    }, [stageEl, micStream, teardown, stopOwnedTracks]);
+    }, [getStageEl, micStream, teardown, stopOwnedTracks]);
 
     const stop = useCallback(() => {
         const rec = recRef.current;

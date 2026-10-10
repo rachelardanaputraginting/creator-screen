@@ -226,8 +226,10 @@ export default function EditorLayout() {
         cameraVideoRef.current = node;
     }, []);
 
+    const getStageEl = useCallback(() => stageRef.current, []);
+
     const recorder = useStageRecorder({
-        stageEl: stageRef.current,
+        getStageEl,
         micStream,
     });
     const recording = recorder.status === "recording";
