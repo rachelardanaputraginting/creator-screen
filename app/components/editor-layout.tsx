@@ -230,10 +230,18 @@ export default function EditorLayout() {
 
     const attachScreenVideo = useCallback((node: HTMLVideoElement | null) => {
         screenVideoRef.current = node;
+        if (node && screenStreamRef.current) {
+            node.srcObject = screenStreamRef.current;
+            void node.play().catch(() => {});
+        }
     }, []);
 
     const attachCameraVideo = useCallback((node: HTMLVideoElement | null) => {
         cameraVideoRef.current = node;
+        if (node && cameraStreamRef.current) {
+            node.srcObject = cameraStreamRef.current;
+            void node.play().catch(() => {});
+        }
     }, []);
 
     const recorder = useStageRecorder({
@@ -586,11 +594,32 @@ export default function EditorLayout() {
                         <Button
                             size="sm"
                             onClick={() => recorder.start()}
+                            disabled={!cameraOn || !hasScreen}
+                            title={
+                                !cameraOn && !hasScreen
+                                    ? "Aktifkan kamera dan share screen dulu"
+                                    : !cameraOn
+                                      ? "Aktifkan kamera dulu"
+                                      : !hasScreen
+                                        ? "Share screen dulu"
+                                        : "Record HD"
+                            }
                         >
                             <Circle className="fill-current" />{" "}
                             Record HD
                         </Button>
                     </>
+                )}
+                {isSessionActive && (
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        title="End session (Esc)"
+                        aria-label="End session"
+                        onClick={handleEndSession}
+                    >
+                        <Square /> End
+                    </Button>
                 )}
                 {recorder.blobUrl && !recording && (
                     <Button
@@ -610,11 +639,24 @@ export default function EditorLayout() {
                 )}
                 {!recording && (
                     <p className="w-full text-[11px] text-muted-foreground">
-                        {currentScene
-                            ? `Scene: ${currentScene.name}`
-                            : "Editor mode"}
-                        {!micOn && " · Mic off"} · Otomatis fullscreen ·
-                        pilih Entire Screen · Esc stop
+                        {!cameraOn || !hasScreen ? (
+                            <>
+                                {!cameraOn && !hasScreen
+                                    ? "Aktifkan kamera + share screen untuk Record."
+                                    : !cameraOn
+                                      ? "Aktifkan kamera untuk Record."
+                                      : "Share screen dulu untuk Record."}
+                            </>
+                        ) : (
+                            <>
+                                {currentScene
+                                    ? `Scene: ${currentScene.name}`
+                                    : "Editor mode"}
+                                {!micOn && " · Mic off"} · Otomatis
+                                fullscreen · pilih Browser Tab ini · Esc
+                                stop
+                            </>
+                        )}
                     </p>
                 )}
             </CardContent>
@@ -622,7 +664,7 @@ export default function EditorLayout() {
     );
 
     const sidebar = (
-        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4 py-0">
+        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
             <AboutPanel />
             {cameraCard}
             {recordCard}
@@ -632,25 +674,53 @@ export default function EditorLayout() {
     if (presentation) {
         return (
             <div className="flex h-screen w-screen overflow-hidden bg-background">
-                {isSessionActive && (
-                    <div className="absolute left-4 top-3 z-20 no-record">
-                        <Badge variant="destructive">Session active</Badge>
-                    </div>
-                )}
                 <div className="flex min-h-0 min-w-0 flex-1">
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Tabs
+                                value={currentScene?.id ?? ""}
+                                onValueChange={(v) => switchScene(v)}
+                            >
+                                <TabsList>
+                                    {scenes.map((scene, i) => (
+                                        <TabsTrigger
+                                            key={scene.id}
+                                            value={scene.id}
+                                        >
+                                            {i + 1}. {scene.name}
+                                        </TabsTrigger>
+                                    ))}
+                                </TabsList>
+                            </Tabs>
+                            <div className="ml-auto no-record">
+                                {screenOn ? (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleStopScreen}
+                                    >
+                                        <MonitorOff /> Stop screen
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        onClick={() =>
+                                            void handleShareScreen()
+                                        }
+                                    >
+                                        <MonitorUp /> Select screen
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                         {screenPreview}
                         <TechMarquee />
                     </div>
                     <div className="flex min-h-0 w-[280px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
                         <AboutPanel clean />
                         {cameraCard}
+                        {recordCard}
                     </div>
-                </div>
-                <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 no-record">
-                    <Button variant="secondary" onClick={handleEndSession}>
-                        <Square /> End session (Esc)
-                    </Button>
                 </div>
             </div>
         );
@@ -763,10 +833,10 @@ export default function EditorLayout() {
             </AlertDialog>
 
             <div className="flex min-h-0 flex-1">
-                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 sm:px-4">
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="flex min-h-0 flex-1 gap-0">
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto pr-4">
-                            <div className="flex flex-wrap items-center gap-2 no-record">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Tabs
                                     value={currentScene?.id ?? ""}
                                     onValueChange={(v) => switchScene(v)}
@@ -782,7 +852,7 @@ export default function EditorLayout() {
                                         ))}
                                     </TabsList>
                                 </Tabs>
-                                <div className="ml-auto">
+                                <div className="ml-auto no-record">
                                     {screenOn ? (
                                         <Button
                                             size="sm"

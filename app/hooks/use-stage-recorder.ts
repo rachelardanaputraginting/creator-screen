@@ -100,18 +100,16 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
         }
 
         const ownFullscreen = !document.fullscreenElement;
-        try {
-            await document.documentElement.requestFullscreen();
-        } catch {
-            /* lanjut tanpa fullscreen */
-        }
 
         let shareStream: MediaStream;
         try {
             shareStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
                 audio: false,
-            });
+                selfBrowserSurface: "include",
+                preferCurrentTab: true,
+                surfaceSwitching: "exclude",
+            } as DisplayMediaStreamOptions);
         } catch (e) {
             const name =
                 e instanceof DOMException
@@ -130,10 +128,16 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
             setError("Gagal memulai berbagi layar.");
             return;
         }
-        if (track.getSettings().displaySurface !== "monitor") {
+        if (track.getSettings().displaySurface !== "browser") {
             shareStream.getTracks().forEach((t) => t.stop());
-            setError("Pilih Entire Screen, bukan tab/window.");
+            setError("Pilih Browser Tab ini (tab Creator Screen), bukan Entire Screen/window.");
             return;
+        }
+
+        try {
+            await document.documentElement.requestFullscreen();
+        } catch {
+            /* lanjut tanpa fullscreen */
         }
 
         setError(null);
