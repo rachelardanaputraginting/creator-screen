@@ -45,7 +45,13 @@ import AboutPanel from "./about-panel";
 import TechMarquee from "./tech-marquee";
 import ThemeToggle from "./theme-toggle";
 import MicLevelMeter from "./mic-level-meter";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useStageRecorder } from "@/app/hooks/use-stage-recorder";
 import {
     MonitorUp,
@@ -652,31 +658,49 @@ export default function EditorLayout() {
                 </div>
                 <div className="space-y-1.5">
                     <Label htmlFor="mic-device">Mic input</Label>
-                    <NativeSelect
-                        id="mic-device"
-                        size="sm"
-                        className="w-full"
-                        value={selectedMicId}
-                        disabled={recording}
-                        title={
-                            recording
-                                ? "Hentikan rekaman dulu untuk ganti mic"
-                                : "Pilih device input mic"
+                    <Select
+                        value={selectedMicId || "default"}
+                        onValueChange={(v) =>
+                            void switchMicDevice(
+                                v === "default" ? "" : String(v),
+                            )
                         }
-                        onChange={(e) => void switchMicDevice(e.target.value)}
+                        disabled={recording}
                     >
-                        <NativeSelectOption value="">
-                            Default device
-                        </NativeSelectOption>
-                        {micDevices.map((d, i) => (
-                            <NativeSelectOption
-                                key={d.deviceId || `input-${i}`}
-                                value={d.deviceId}
-                            >
-                                {d.label || `Input device ${i + 1}`}
-                            </NativeSelectOption>
-                        ))}
-                    </NativeSelect>
+                        <SelectTrigger
+                            id="mic-device"
+                            size="sm"
+                            className="w-full"
+                            title={
+                                recording
+                                    ? "Hentikan rekaman dulu untuk ganti mic"
+                                    : "Pilih device input mic"
+                            }
+                        >
+                            <SelectValue>
+                                {(v: string | null) =>
+                                    v && v !== "default"
+                                        ? micDevices.find(
+                                                  (d) => d.deviceId === v,
+                                              )?.label || "Input device"
+                                        : "Default device"
+                                }
+                            </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent side="top" align="start">
+                            <SelectItem value="default">
+                                Default device
+                            </SelectItem>
+                            {micDevices.map((d, i) => (
+                                <SelectItem
+                                    key={d.deviceId || `input-${i}`}
+                                    value={d.deviceId}
+                                >
+                                    {d.label || `Input device ${i + 1}`}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
                 {micOn && (
                     <div className="flex items-center gap-2">
