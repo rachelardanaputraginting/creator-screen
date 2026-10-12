@@ -415,7 +415,18 @@ export default function EditorLayout() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
-            setMicDevices(devices.filter((d) => d.kind === "audioinput"));
+            // Only inputs with a real deviceId are selectable — before mic
+            // permission is granted the browser reports empty ids/labels, and
+            // options with identical (empty) values would silently no-op.
+            const seen = new Set<string>();
+            const inputs: MediaDeviceInfo[] = [];
+            for (const d of devices) {
+                if (d.kind !== "audioinput" || !d.deviceId) continue;
+                if (seen.has(d.deviceId)) continue;
+                seen.add(d.deviceId);
+                inputs.push(d);
+            }
+            setMicDevices(inputs);
         } catch {
             /* ignore */
         }
@@ -701,6 +712,11 @@ export default function EditorLayout() {
                             ))}
                         </SelectContent>
                     </Select>
+                    {micDevices.length === 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                            Aktifkan mic dulu untuk melihat daftar device.
+                        </p>
+                    )}
                 </div>
                 {micOn && (
                     <div className="flex items-center gap-2">
