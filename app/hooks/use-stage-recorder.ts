@@ -20,6 +20,7 @@ function safeSupported(mime: string) {
 
 interface StageRecorderArgs {
     micStream: MediaStream | null;
+    screenStreamRef: { current: MediaStream | null };
 }
 
 interface ActiveRecording {
@@ -29,6 +30,8 @@ interface ActiveRecording {
     chunks: Blob[];
     startedAt: number;
     ownFullscreen: boolean;
+    audioCtx: AudioContext | null;
+    mixNodes: AudioNode[];
 }
 
 function pad(n: number) {
@@ -39,7 +42,10 @@ function fileNameFor(date: Date) {
     return `creator-screen-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.webm`;
 }
 
-export function useStageRecorder({ micStream }: StageRecorderArgs): {
+export function useStageRecorder({
+    micStream,
+    screenStreamRef,
+}: StageRecorderArgs): {
     status: "idle" | "recording";
     elapsedMs: number;
     error: string | null;
@@ -79,6 +85,9 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
                 /* already stopped */
             }
             stopOwnedTracks(rec);
+            if (rec.audioCtx && rec.audioCtx.state !== "closed") {
+                void rec.audioCtx.close().catch(() => {});
+            }
         },
         [stopOwnedTracks],
     );
@@ -159,10 +168,43 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
             micStream
                 ?.getAudioTracks()
                 .filter((t) => t.readyState === "live") ?? [];
-        const recordStream =
-            micTracks.length > 0
-                ? new MediaStream([track, ...micTracks])
-                : new MediaStream([track]);
+        const systemTracks =
+            screenStreamRef.current
+                ?.getAudioTracks()
+                .filter((t) => t.readyState === "live") ?? [];
+        const audioSources = [...systemTracks, ...micTracks];
+
+        // Single source: append directly (no AudioContext needed). Two or more
+        // sources (system audio + mic) must be mixed down — MediaRecorder only
+        // records the first audio track of a stream.
+        let audioCtx: AudioContext | null = null;
+        let mixNodes: AudioNode[] = [];
+        let audioTracks: MediaStreamTrack[] = [];
+        if (audioSources.length === 1) {
+            audioTracks = audioSources;
+        } else if (audioSources.length > 1) {
+            try {
+                audioCtx = new AudioContext();
+                if (audioCtx.state === "suspended") {
+                    await audioCtx.resume().catch(() => {});
+                }
+                const dest = audioCtx.createMediaStreamDestination();
+                for (const source of audioSources) {
+                    const node = audioCtx.createMediaStreamSource(
+                        new MediaStream([source]),
+                    );
+                    node.connect(dest);
+                    mixNodes.push(node);
+                }
+                audioTracks = dest.stream.getAudioTracks();
+            } catch {
+                void audioCtx?.close().catch(() => {});
+                audioCtx = null;
+                mixNodes = [];
+                audioTracks = micTracks.length > 0 ? micTracks : systemTracks;
+            }
+        }
+        const recordStream = new MediaStream([track, ...audioTracks]);
 
         const chunks: Blob[] = [];
         let recorder: MediaRecorder;
@@ -175,6 +217,7 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
                           videoBitsPerSecond: 8_000_000,
                       });
         } catch {
+            void audioCtx?.close().catch(() => {});
             setError("Browser tidak mendukung perekaman video.");
             track.stop();
             return;
@@ -188,6 +231,8 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
             chunks,
             startedAt,
             ownFullscreen,
+            audioCtx,
+            mixNodes,
         };
         recRef.current = rec;
 
@@ -207,6 +252,9 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
             if (e.data && e.data.size > 0) chunks.push(e.data);
         };
         recorder.onstop = () => {
+            if (rec.audioCtx && rec.audioCtx.state !== "closed") {
+                void rec.audioCtx.close().catch(() => {});
+            }
             const active = recRef.current === rec;
             clearInterval(rec.timer);
             stopOwnedTracks(rec);
@@ -232,7 +280,7 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
             return;
         }
         setStatus("recording");
-    }, [micStream, teardown, stopOwnedTracks]);
+    }, [micStream, screenStreamRef, teardown, stopOwnedTracks]);
 
     const stop = useCallback(() => {
         const rec = recRef.current;
@@ -269,6 +317,9 @@ export function useStageRecorder({ micStream }: StageRecorderArgs): {
                     if (rec.recorder.state !== "inactive") rec.recorder.stop();
                 } catch {
                     /* noop */
+                }
+                if (rec.audioCtx && rec.audioCtx.state !== "closed") {
+                    void rec.audioCtx.close().catch(() => {});
                 }
                 stopOwnedTracks(rec);
                 recRef.current = null;

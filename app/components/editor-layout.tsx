@@ -44,6 +44,8 @@ import {
 import AboutPanel from "./about-panel";
 import TechMarquee from "./tech-marquee";
 import ThemeToggle from "./theme-toggle";
+import MicLevelMeter from "./mic-level-meter";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useStageRecorder } from "@/app/hooks/use-stage-recorder";
 import {
     MonitorUp,
@@ -127,10 +129,16 @@ export default function EditorLayout() {
 
     const [mediaError, setMediaError] = useState<string | null>(null);
     const [recordNotice, setRecordNotice] = useState<string | null>(null);
+    const [recordNoticeTitle, setRecordNoticeTitle] = useState(
+        "Rekaman tersimpan",
+    );
     const [screenOn, setScreenOn] = useState(false);
+    const [screenAudioOn, setScreenAudioOn] = useState(false);
     const [cameraOn, setCameraOn] = useState(false);
     const [micOn, setMicOn] = useState(false);
     const [micStream, setMicStream] = useState<MediaStream | null>(null);
+    const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedMicId, setSelectedMicId] = useState("");
     const [mirror, setMirror] = useState(true);
     const screenVideoRef = useRef<HTMLVideoElement | null>(null);
     const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -138,6 +146,11 @@ export default function EditorLayout() {
     const cameraStreamRef = useRef<MediaStream | null>(null);
     const micStreamRef = useRef<MediaStream | null>(null);
     const initializedRef = useRef(false);
+
+    const showNotice = useCallback((message: string, title?: string) => {
+        setRecordNoticeTitle(title ?? "Rekaman tersimpan");
+        setRecordNotice(message);
+    }, []);
 
     useEffect(() => {
         if (initializedRef.current) return;
@@ -246,6 +259,7 @@ export default function EditorLayout() {
 
     const recorder = useStageRecorder({
         micStream,
+        screenStreamRef,
     });
     const recording = recorder.status === "recording";
     const statusRef = useRef(recorder.status);
@@ -278,7 +292,7 @@ export default function EditorLayout() {
 
     useEffect(() => {
         if (recorder.notice) {
-            setRecordNotice(recorder.notice);
+            showNotice(recorder.notice);
             recorder.clearNotice();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -287,26 +301,27 @@ export default function EditorLayout() {
     const stopScreenTracks = useCallback(() => {
         if (statusRef.current === "recording") {
             recorder.stop();
-            setRecordNotice(
+            showNotice(
                 "Layar berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
         screenStreamRef.current?.getTracks().forEach((t) => t.stop());
         screenStreamRef.current = null;
         setScreenOn(false);
-    }, [recorder]);
+        setScreenAudioOn(false);
+    }, [recorder, showNotice]);
 
     const stopCameraTracks = useCallback(() => {
         if (statusRef.current === "recording") {
             recorder.stop();
-            setRecordNotice(
+            showNotice(
                 "Kamera berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
         cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
         cameraStreamRef.current = null;
         setCameraOn(false);
-    }, [recorder]);
+    }, [recorder, showNotice]);
 
     useEffect(
         () => () => {
@@ -328,10 +343,19 @@ export default function EditorLayout() {
             }
             const stream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
-                audio: false,
-            });
+                audio: true,
+                systemAudio: "include",
+            } as DisplayMediaStreamOptions);
             screenStreamRef.current = stream;
             setScreenOn(true);
+            const hasSystemAudio = stream.getAudioTracks().length > 0;
+            setScreenAudioOn(hasSystemAudio);
+            if (!hasSystemAudio) {
+                showNotice(
+                    'Saat memilih layar, pilih "Entire Screen" lalu centang "Share system audio" supaya suara komputer ikut terekam. Tanpa itu rekaman hanya berisi suara mic.',
+                    "Suara komputer belum ikut",
+                );
+            }
             setSource({
                 id: "source-screen",
                 type: "screen",
@@ -347,7 +371,7 @@ export default function EditorLayout() {
                 "Unable to access this screen. Check your system permissions and try again.",
             );
         }
-    }, [setSource, stopScreenTracks]);
+    }, [setSource, stopScreenTracks, showNotice]);
 
     const handleStopScreen = useCallback(() => {
         stopScreenTracks();
@@ -381,10 +405,29 @@ export default function EditorLayout() {
         stopCameraTracks();
     }, [stopCameraTracks]);
 
+    const refreshMicDevices = useCallback(async () => {
+        if (!navigator.mediaDevices?.enumerateDevices) return;
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            setMicDevices(devices.filter((d) => d.kind === "audioinput"));
+        } catch {
+            /* ignore */
+        }
+    }, []);
+
+    useEffect(() => {
+        void refreshMicDevices();
+        const md = navigator.mediaDevices;
+        if (!md) return;
+        const onChange = () => void refreshMicDevices();
+        md.addEventListener("devicechange", onChange);
+        return () => md.removeEventListener("devicechange", onChange);
+    }, [refreshMicDevices]);
+
     const stopMicTracks = useCallback(() => {
         if (statusRef.current === "recording") {
             recorder.stop();
-            setRecordNotice(
+            showNotice(
                 "Mic berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
@@ -392,7 +435,22 @@ export default function EditorLayout() {
         micStreamRef.current = null;
         setMicStream(null);
         setMicOn(false);
-    }, [recorder]);
+    }, [recorder, showNotice]);
+
+    const attachMic = useCallback(
+        (stream: MediaStream) => {
+            micStreamRef.current = stream;
+            setMicStream(stream);
+            setMicOn(true);
+            const track = stream.getAudioTracks()[0];
+            if (track) {
+                track.onended = () => {
+                    stopMicTracks();
+                };
+            }
+        },
+        [stopMicTracks],
+    );
 
     const handleEnableMic = useCallback(async () => {
         setMediaError(null);
@@ -403,20 +461,45 @@ export default function EditorLayout() {
             }
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: false,
-                audio: true,
+                audio: selectedMicId
+                    ? { deviceId: { exact: selectedMicId } }
+                    : true,
             });
-            micStreamRef.current = stream;
-            setMicStream(stream);
-            setMicOn(true);
-            stream.getAudioTracks()[0]?.addEventListener("ended", () => {
-                stopMicTracks();
-            });
+            attachMic(stream);
+            await refreshMicDevices();
         } catch {
             setMediaError(
                 "Unable to access the microphone. Check your system permissions and try again.",
             );
         }
-    }, [stopMicTracks]);
+    }, [selectedMicId, attachMic, refreshMicDevices]);
+
+    const switchMicDevice = useCallback(
+        async (deviceId: string) => {
+            setSelectedMicId(deviceId);
+            if (!micStreamRef.current) return;
+            setMediaError(null);
+            micStreamRef.current.getTracks().forEach((t) => t.stop());
+            micStreamRef.current = null;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: false,
+                    audio: deviceId
+                        ? { deviceId: { exact: deviceId } }
+                        : true,
+                });
+                attachMic(stream);
+                await refreshMicDevices();
+            } catch {
+                setMicStream(null);
+                setMicOn(false);
+                setMediaError(
+                    "Unable to access the microphone. Check your system permissions and try again.",
+                );
+            }
+        },
+        [attachMic, refreshMicDevices],
+    );
 
     const handleStopMic = useCallback(() => {
         stopMicTracks();
@@ -567,6 +650,48 @@ export default function EditorLayout() {
                         onCheckedChange={setMirror}
                     />
                 </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="mic-device">Mic input</Label>
+                    <NativeSelect
+                        id="mic-device"
+                        size="sm"
+                        className="w-full"
+                        value={selectedMicId}
+                        disabled={recording}
+                        title={
+                            recording
+                                ? "Hentikan rekaman dulu untuk ganti mic"
+                                : "Pilih device input mic"
+                        }
+                        onChange={(e) => void switchMicDevice(e.target.value)}
+                    >
+                        <NativeSelectOption value="">
+                            Default device
+                        </NativeSelectOption>
+                        {micDevices.map((d, i) => (
+                            <NativeSelectOption
+                                key={d.deviceId || `input-${i}`}
+                                value={d.deviceId}
+                            >
+                                {d.label || `Input device ${i + 1}`}
+                            </NativeSelectOption>
+                        ))}
+                    </NativeSelect>
+                </div>
+                {micOn && (
+                    <div className="flex items-center gap-2">
+                        <MicLevelMeter stream={micStream} />
+                        <span
+                            className="max-w-[50%] truncate text-[11px] text-muted-foreground"
+                            title={
+                                micStream?.getAudioTracks()[0]?.label || "Mic"
+                            }
+                        >
+                            {micStream?.getAudioTracks()[0]?.label ||
+                                "Mic aktif"}
+                        </span>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -652,9 +777,11 @@ export default function EditorLayout() {
                                 {currentScene
                                     ? `Scene: ${currentScene.name}`
                                     : "Editor mode"}
-                                {!micOn && " · Mic off"} · Otomatis
-                                fullscreen · pilih Browser Tab ini · Esc
-                                stop
+                                {" · Suara layar "}
+                                {screenAudioOn ? "on" : "off"}
+                                {" · Mic "}
+                                {micOn ? "on" : "off"} · Otomatis fullscreen ·
+                                pilih Browser Tab ini · Esc stop
                             </>
                         )}
                     </p>
@@ -806,7 +933,7 @@ export default function EditorLayout() {
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Rekaman tersimpan</AlertDialogTitle>
+                        <AlertDialogTitle>{recordNoticeTitle}</AlertDialogTitle>
                         <AlertDialogDescription>
                             {recordNotice}
                         </AlertDialogDescription>
