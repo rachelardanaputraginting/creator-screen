@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@/stores/canvas-store";
-import type { Scene } from "@/types/scene";
+import type { Scene, SceneDevices } from "@/types/scene";
 import { BackgroundType } from "@/types/scene";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,12 @@ import {
     Download,
 } from "lucide-react";
 
+interface SceneScreen {
+    stream: MediaStream;
+    audioOn: boolean;
+    label: string;
+}
+
 function defaultScenes(): Scene[] {
     const screen = {
         id: "source-screen",
@@ -84,6 +90,12 @@ function defaultScenes(): Scene[] {
             background: BackgroundType.Solid,
             canvasWidth: 1920,
             canvasHeight: 1080,
+            devices: {
+                cameraOn: true,
+                micOn: true,
+                micDeviceId: "",
+                mirror: true,
+            },
         },
         {
             id: "browser",
@@ -97,6 +109,12 @@ function defaultScenes(): Scene[] {
             background: BackgroundType.Solid,
             canvasWidth: 1920,
             canvasHeight: 1080,
+            devices: {
+                cameraOn: true,
+                micOn: false,
+                micDeviceId: "",
+                mirror: true,
+            },
         },
         {
             id: "terminal",
@@ -106,6 +124,12 @@ function defaultScenes(): Scene[] {
             background: BackgroundType.Solid,
             canvasWidth: 1920,
             canvasHeight: 1080,
+            devices: {
+                cameraOn: false,
+                micOn: true,
+                micDeviceId: "",
+                mirror: true,
+            },
         },
         {
             id: "presentation",
@@ -115,14 +139,18 @@ function defaultScenes(): Scene[] {
             background: BackgroundType.Solid,
             canvasWidth: 1920,
             canvasHeight: 1080,
+            devices: {
+                cameraOn: true,
+                micOn: true,
+                micDeviceId: "",
+                mirror: true,
+            },
         },
     ];
 }
 
 export default function EditorLayout() {
     const {
-        source,
-        setSource,
         currentScene,
         scenes,
         setScenes,
@@ -138,8 +166,16 @@ export default function EditorLayout() {
     const [recordNoticeTitle, setRecordNoticeTitle] = useState(
         "Rekaman tersimpan",
     );
-    const [screenOn, setScreenOn] = useState(false);
-    const [screenAudioOn, setScreenAudioOn] = useState(false);
+    // Screen aktif PER SCENE — tiap scene memilih source-nya sendiri
+    // lewat picker browser (beberapa share boleh hidup bersamaan).
+    const [screensByScene, setScreensByScene] = useState<
+        Record<string, SceneScreen>
+    >({});
+    const screensBySceneRef = useRef<Record<string, SceneScreen>>({});
+    const currentSceneId = currentScene?.id ?? "";
+    const activeScreen = screensByScene[currentSceneId];
+    const screenOn = !!activeScreen;
+    const screenAudioOn = activeScreen?.audioOn ?? false;
     const [cameraOn, setCameraOn] = useState(false);
     const [micOn, setMicOn] = useState(false);
     const [micStream, setMicStream] = useState<MediaStream | null>(null);
@@ -162,6 +198,11 @@ export default function EditorLayout() {
         if (initializedRef.current) return;
         initializedRef.current = true;
         const st = useStore.getState();
+        // Reset runtime flags — localStorage lama (sebelum partialize) bisa
+        // masih menyimpan session/fullscreen nyangkut; fresh load tidak
+        // pernah sah berada di session.
+        st.setIsSessionActive(false);
+        st.setIsFullscreen(false);
         const deduped = Array.from(
             new Map(st.scenes.map((s) => [s.id, s])).values(),
         );
@@ -233,12 +274,20 @@ export default function EditorLayout() {
         return () => window.removeEventListener("keydown", onKey);
     }, [toggleFullscreen, exitFullscreen]);
 
+    // Sinkronkan ref screen aktif (dipakai recorder untuk system audio)
+    // dan pasang ke elemen preview. Setiap ganti scene / ganti screen,
+    // stream yang dirender otomatis ikut berganti.
     useEffect(() => {
-        if (screenVideoRef.current && screenStreamRef.current) {
+        screensBySceneRef.current = screensByScene;
+        screenStreamRef.current =
+            screensByScene[currentSceneId]?.stream ?? null;
+        if (screenVideoRef.current) {
             screenVideoRef.current.srcObject = screenStreamRef.current;
-            void screenVideoRef.current.play().catch(() => {});
+            if (screenStreamRef.current) {
+                void screenVideoRef.current.play().catch(() => {});
+            }
         }
-    }, [screenOn, source?.type]);
+    }, [screensByScene, currentSceneId]);
 
     useEffect(() => {
         if (cameraVideoRef.current && cameraStreamRef.current) {
@@ -268,6 +317,7 @@ export default function EditorLayout() {
         screenStreamRef,
     });
     const recording = recorder.status === "recording";
+    const fileExt = recorder.fileName.endsWith(".mp4") ? "mp4" : "webm";
     const statusRef = useRef(recorder.status);
     statusRef.current = recorder.status;
 
@@ -304,6 +354,24 @@ export default function EditorLayout() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [recorder.notice]);
 
+    // Hapus + stop stream screen milik satu scene tertentu.
+    const stopSceneScreen = useCallback((sceneId: string) => {
+        setScreensByScene((prev) => {
+            const entry = prev[sceneId];
+            if (!entry) return prev;
+            entry.stream.getTracks().forEach((t) => {
+                try {
+                    t.stop();
+                } catch {
+                    /* noop */
+                }
+            });
+            const next = { ...prev };
+            delete next[sceneId];
+            return next;
+        });
+    }, []);
+
     const stopScreenTracks = useCallback(() => {
         if (statusRef.current === "recording") {
             recorder.stop();
@@ -311,11 +379,9 @@ export default function EditorLayout() {
                 "Layar berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
-        screenStreamRef.current?.getTracks().forEach((t) => t.stop());
-        screenStreamRef.current = null;
-        setScreenOn(false);
-        setScreenAudioOn(false);
-    }, [recorder, showNotice]);
+        const id = useStore.getState().currentScene?.id;
+        if (id) stopSceneScreen(id);
+    }, [recorder, showNotice, stopSceneScreen]);
 
     const stopCameraTracks = useCallback(() => {
         if (statusRef.current === "recording") {
@@ -331,7 +397,9 @@ export default function EditorLayout() {
 
     useEffect(
         () => () => {
-            screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+            Object.values(screensBySceneRef.current).forEach((e) =>
+                e.stream.getTracks().forEach((t) => t.stop()),
+            );
             cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
             micStreamRef.current?.getTracks().forEach((t) => t.stop());
         },
@@ -340,6 +408,8 @@ export default function EditorLayout() {
 
     const handleShareScreen = useCallback(async () => {
         setMediaError(null);
+        const sceneId = useStore.getState().currentScene?.id;
+        if (!sceneId) return;
         try {
             if (!navigator.mediaDevices?.getDisplayMedia) {
                 setMediaError(
@@ -352,37 +422,49 @@ export default function EditorLayout() {
                 audio: true,
                 systemAudio: "include",
             } as DisplayMediaStreamOptions);
-            screenStreamRef.current = stream;
-            setScreenOn(true);
-            const hasSystemAudio = stream.getAudioTracks().length > 0;
-            setScreenAudioOn(hasSystemAudio);
-            if (!hasSystemAudio) {
+            // Hasil picker menjadi screen milik scene AKTIF; stream lama
+            // scene ini (kalau ada) dimatikan.
+            const entry: SceneScreen = {
+                stream,
+                audioOn: stream.getAudioTracks().length > 0,
+                label:
+                    stream.getVideoTracks()[0]?.label || "Screen capture",
+            };
+            setScreensByScene((prev) => {
+                prev[sceneId]?.stream.getTracks().forEach((t) => {
+                    try {
+                        t.stop();
+                    } catch {
+                        /* noop */
+                    }
+                });
+                return { ...prev, [sceneId]: entry };
+            });
+            if (!entry.audioOn) {
                 showNotice(
                     'Saat memilih layar, pilih "Entire Screen" lalu centang "Share system audio" supaya suara komputer ikut terekam. Tanpa itu rekaman hanya berisi suara mic.',
                     "Suara komputer belum ikut",
                 );
             }
-            setSource({
-                id: "source-screen",
-                type: "screen",
-                label: "Display 1",
-                active: true,
-            });
+            // User menghentikan share lewat UI browser → bersihkan scene ini.
             stream.getVideoTracks()[0]?.addEventListener("ended", () => {
-                stopScreenTracks();
-                setSource(null);
+                setScreensByScene((prev) => {
+                    if (prev[sceneId]?.stream !== stream) return prev;
+                    const next = { ...prev };
+                    delete next[sceneId];
+                    return next;
+                });
             });
         } catch {
             setMediaError(
                 "Unable to access this screen. Check your system permissions and try again.",
             );
         }
-    }, [setSource, stopScreenTracks, showNotice]);
+    }, [showNotice]);
 
     const handleStopScreen = useCallback(() => {
         stopScreenTracks();
-        if (source?.type === "screen") setSource(null);
-    }, [stopScreenTracks, source?.type, setSource]);
+    }, [stopScreenTracks]);
 
     const handleEnableCamera = useCallback(async () => {
         setMediaError(null);
@@ -469,8 +551,9 @@ export default function EditorLayout() {
         [stopMicTracks],
     );
 
-    const handleEnableMic = useCallback(async () => {
+    const handleEnableMic = useCallback(async (deviceId?: string) => {
         setMediaError(null);
+        const wanted = deviceId !== undefined ? deviceId : selectedMicId;
         try {
             if (!navigator.mediaDevices?.getUserMedia) {
                 setMediaError("Microphone is not supported in this browser.");
@@ -478,9 +561,7 @@ export default function EditorLayout() {
             }
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: false,
-                audio: selectedMicId
-                    ? { deviceId: { exact: selectedMicId } }
-                    : true,
+                audio: wanted ? { deviceId: { exact: wanted } } : true,
             });
             attachMic(stream);
             await refreshMicDevices();
@@ -522,6 +603,114 @@ export default function EditorLayout() {
         stopMicTracks();
     }, [stopMicTracks]);
 
+    // --- Scene sebagai profil perangkat -------------------------------
+    const lastSceneIdRef = useRef<string | null>(null);
+    const sceneInitRef = useRef(true);
+    // Snapshot state perangkat terakhir yang diketahui — dipakai supaya
+    // run pertama saat mount tidak menimpa profil scene tersimpan dengan
+    // nilai default (semua off).
+    const deviceSnapshotRef = useRef<{
+        cameraOn: boolean;
+        micOn: boolean;
+        micDeviceId: string;
+        mirror: boolean;
+    } | null>(null);
+    // Scene yang devices-nya tertunda di-apply karena rekaman sedang
+    // berjalan (track mic sudah baked ke stream rekaman — hanya aman
+    // diganti setelah rekaman berakhir).
+    const pendingSceneRef = useRef<Scene | null>(null);
+
+    const applySceneDevices = useCallback(
+        async (dev: SceneDevices) => {
+            setMirror(dev.mirror);
+            if (dev.cameraOn && !cameraStreamRef.current) {
+                await handleEnableCamera();
+            } else if (!dev.cameraOn && cameraStreamRef.current) {
+                handleStopCamera();
+            }
+            if (dev.micOn && !micStreamRef.current) {
+                setSelectedMicId(dev.micDeviceId);
+                await handleEnableMic(dev.micDeviceId);
+            } else if (!dev.micOn && micStreamRef.current) {
+                handleStopMic();
+            } else if (
+                dev.micOn &&
+                micStreamRef.current &&
+                dev.micDeviceId &&
+                dev.micDeviceId !== selectedMicId
+            ) {
+                await switchMicDevice(dev.micDeviceId);
+            }
+        },
+        [
+            handleEnableCamera,
+            handleStopCamera,
+            handleEnableMic,
+            handleStopMic,
+            switchMicDevice,
+            selectedMicId,
+        ],
+    );
+
+    // Apply devices scene saat user berpindah tab. Saat mount TIDAK
+    // di-apply — bisa memicu prompt izin kamera/mic waktu app dibuka.
+    useEffect(() => {
+        const scene = useStore.getState().currentScene;
+        if (!scene) return;
+        if (sceneInitRef.current) {
+            sceneInitRef.current = false;
+            lastSceneIdRef.current = scene.id;
+            return;
+        }
+        if (lastSceneIdRef.current === scene.id) return;
+        lastSceneIdRef.current = scene.id;
+        if (statusRef.current === "recording") {
+            pendingSceneRef.current = scene;
+            return;
+        }
+        pendingSceneRef.current = null;
+        if (scene.devices) void applySceneDevices(scene.devices);
+    }, [currentScene?.id, applySceneDevices]);
+
+    // Ganti tab saat rekaman tetap berganti tampilan, tetapi kamera/mic
+    // baru diterapkan setelah rekaman berakhir (audio rekaman memakai
+    // track mic yang sudah direkam sejak awal).
+    useEffect(() => {
+        if (recording) return;
+        const pending = pendingSceneRef.current;
+        if (!pending) return;
+        pendingSceneRef.current = null;
+        if (pending.id !== useStore.getState().currentScene?.id) return;
+        if (pending.devices) void applySceneDevices(pending.devices);
+    }, [recording, applySceneDevices]);
+
+    // Auto-save kamera/mic/mirror ke scene aktif — hanya saat nilai
+    // berubah dari snapshot terakhir, dan tidak sedang rekaman.
+    useEffect(() => {
+        const snap = {
+            cameraOn,
+            micOn,
+            micDeviceId: selectedMicId,
+            mirror,
+        };
+        const prev = deviceSnapshotRef.current;
+        deviceSnapshotRef.current = snap;
+        if (!prev) return; // baseline saat mount — jangan tulis
+        if (
+            prev.cameraOn === snap.cameraOn &&
+            prev.micOn === snap.micOn &&
+            prev.micDeviceId === snap.micDeviceId &&
+            prev.mirror === snap.mirror
+        )
+            return;
+        if (statusRef.current === "recording") return;
+        const scene = useStore.getState().currentScene;
+        if (!scene) return;
+        useStore.getState().updateScene(scene.id, {
+            devices: snap,
+        });
+    }, [cameraOn, micOn, selectedMicId, mirror]);
+
     const handleStartSession = useCallback(() => {
         setIsSessionActive(true);
         void enterFullscreen();
@@ -534,14 +723,14 @@ export default function EditorLayout() {
     }, [setIsSessionActive, setIsFullscreen, exitFullscreen]);
 
     const presentation = isFullscreen || isSessionActive;
-    const hasScreen = source?.type === "screen" && screenOn;
+    const hasScreen = screenOn;
 
     const screenPreview = (
-        <Card className="w-full py-0">
-            <CardContent className="p-0">
+        <Card className="w-full min-h-0 flex-1 py-0">
+            <CardContent className="min-h-0 flex-1 p-0">
                 <AspectRatio
                     ratio={16 / 9}
-                    className="overflow-hidden rounded-md h-fit bg-muted"
+                    className="h-full w-full overflow-hidden rounded-md bg-muted"
                 >
                     {hasScreen ? (
                         <video
@@ -667,6 +856,30 @@ export default function EditorLayout() {
                         onCheckedChange={setMirror}
                     />
                 </div>
+                {micOn && (
+                    <div className="flex items-center gap-2">
+                        <MicLevelMeter stream={micStream} />
+                        <span
+                            className="max-w-[50%] truncate text-[11px] text-muted-foreground"
+                            title={
+                                micStream?.getAudioTracks()[0]?.label || "Mic"
+                            }
+                        >
+                            {micStream?.getAudioTracks()[0]?.label ||
+                                "Mic aktif"}
+                        </span>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+
+    // Bagian kontrol: mentok di bawah sidebar, tidak ikut scroll, dan
+    // tetap tampil selama record (sesuai keputusan: kontrol boleh
+    // terekam di pojok kanan bawah video).
+    const controlCard = (
+        <Card size="sm" className="shrink-0">
+            <CardContent className="space-y-3">
                 <div className="space-y-1.5">
                     <Label htmlFor="mic-device">Mic input</Label>
                     <Select
@@ -718,34 +931,15 @@ export default function EditorLayout() {
                         </p>
                     )}
                 </div>
-                {micOn && (
-                    <div className="flex items-center gap-2">
-                        <MicLevelMeter stream={micStream} />
-                        <span
-                            className="max-w-[50%] truncate text-[11px] text-muted-foreground"
-                            title={
-                                micStream?.getAudioTracks()[0]?.label || "Mic"
-                            }
-                        >
-                            {micStream?.getAudioTracks()[0]?.label ||
-                                "Mic aktif"}
-                        </span>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
-
-    const recordCard = (
-        <Card size="sm" className="shrink-0 no-record">
-            <CardContent className="flex flex-wrap items-center gap-2">
-                {recording ? (
-                    <>
+                <div className="flex flex-wrap items-center gap-2">
+                    {recording ? (
                         <Badge variant="destructive">
                             <span className="size-1.5 animate-pulse rounded-full bg-current" />
                             REC{" "}
                             {`${String(Math.floor(recorder.elapsedMs / 60000)).padStart(2, "0")}:${String(Math.floor((recorder.elapsedMs % 60000) / 1000)).padStart(2, "0")}`}
                         </Badge>
+                    ) : null}
+                    {recording ? (
                         <Button
                             size="sm"
                             variant="outline"
@@ -753,9 +947,7 @@ export default function EditorLayout() {
                         >
                             <Square /> Stop
                         </Button>
-                    </>
-                ) : (
-                    <>
+                    ) : (
                         <Button
                             size="sm"
                             onClick={() => recorder.start()}
@@ -770,40 +962,39 @@ export default function EditorLayout() {
                                         : "Record HD"
                             }
                         >
-                            <Circle className="fill-current" />{" "}
-                            Record HD
+                            <Circle className="fill-current" /> Record HD
                         </Button>
-                    </>
-                )}
-                {isSessionActive && (
-                    <Button
-                        size="sm"
-                        variant="destructive"
-                        title="End session (Esc)"
-                        aria-label="End session"
-                        onClick={handleEndSession}
-                    >
-                        <Square /> End
-                    </Button>
-                )}
-                {recorder.blobUrl && !recording && (
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="ml-auto"
-                        onClick={() =>
-                            recorder.blobUrl &&
-                            downloadRecording(
-                                recorder.blobUrl,
-                                recorder.fileName,
-                            )
-                        }
-                    >
-                        <Download /> .webm
-                    </Button>
-                )}
+                    )}
+                    {isSessionActive && (
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            title="End session (Esc)"
+                            aria-label="End session"
+                            onClick={handleEndSession}
+                        >
+                            <Square /> End
+                        </Button>
+                    )}
+                    {recorder.blobUrl && !recording && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="ml-auto"
+                            onClick={() =>
+                                recorder.blobUrl &&
+                                downloadRecording(
+                                    recorder.blobUrl,
+                                    recorder.fileName,
+                                )
+                            }
+                        >
+                            <Download /> .{fileExt}
+                        </Button>
+                    )}
+                </div>
                 {!recording && (
-                    <p className="w-full text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                         {!cameraOn || !hasScreen ? (
                             <>
                                 {!cameraOn && !hasScreen
@@ -820,8 +1011,8 @@ export default function EditorLayout() {
                                 {" · Suara layar "}
                                 {screenAudioOn ? "on" : "off"}
                                 {" · Mic "}
-                                {micOn ? "on" : "off"} · Otomatis fullscreen ·
-                                pilih Browser Tab ini · Esc stop
+                                {micOn ? "on" : "off"} · Output .{fileExt} ·
+                                Esc stop
                             </>
                         )}
                     </p>
@@ -830,11 +1021,17 @@ export default function EditorLayout() {
         </Card>
     );
 
+    // Sidebar kanan: About + Kamera (bisa scroll) di atas, bagian kontrol
+    // mentok di bawah tanpa ikut scroll.
     const sidebar = (
-        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
-            <AboutPanel />
-            {cameraCard}
-            {recordCard}
+        <aside className="flex min-h-0 w-[300px] shrink-0 flex-col border-l border-border">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                <AboutPanel />
+                {cameraCard}
+            </div>
+            <div className="shrink-0 border-t border-border p-4">
+                {controlCard}
+            </div>
         </aside>
     );
 
@@ -843,7 +1040,7 @@ export default function EditorLayout() {
             <div className="flex h-screen w-screen overflow-hidden bg-background">
                 <div className="flex min-h-0 min-w-0 flex-1">
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
                             <Tabs
                                 value={currentScene?.id ?? ""}
                                 onValueChange={(v) => switchScene(v)}
@@ -859,8 +1056,16 @@ export default function EditorLayout() {
                                     ))}
                                 </TabsList>
                             </Tabs>
-                            <div className="ml-auto no-record">
-                                {screenOn ? (
+                            <div className="ml-auto flex gap-2 no-record">
+                                <Button
+                                    size="sm"
+                                    variant={screenOn ? "outline" : "default"}
+                                    onClick={() => void handleShareScreen()}
+                                >
+                                    <MonitorUp />{" "}
+                                    {screenOn ? "Ganti screen" : "Select screen"}
+                                </Button>
+                                {screenOn && (
                                     <Button
                                         size="sm"
                                         variant="outline"
@@ -868,25 +1073,20 @@ export default function EditorLayout() {
                                     >
                                         <MonitorOff /> Stop screen
                                     </Button>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        onClick={() =>
-                                            void handleShareScreen()
-                                        }
-                                    >
-                                        <MonitorUp /> Select screen
-                                    </Button>
                                 )}
                             </div>
                         </div>
                         {screenPreview}
                         <TechMarquee />
                     </div>
-                    <div className="flex min-h-0 w-[280px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border p-4">
-                        <AboutPanel clean />
-                        {cameraCard}
-                        {recordCard}
+                    <div className="flex min-h-0 w-[280px] shrink-0 flex-col border-l border-border">
+                        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                            <AboutPanel clean />
+                            {cameraCard}
+                        </div>
+                        <div className="shrink-0 border-t border-border p-4">
+                            {controlCard}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -991,7 +1191,7 @@ export default function EditorLayout() {
                                     setRecordNotice(null);
                                 }}
                             >
-                                Download .webm
+                                Download .{fileExt}
                             </AlertDialogAction>
                         )}
                         <AlertDialogCancel>Mengerti</AlertDialogCancel>
@@ -1003,7 +1203,7 @@ export default function EditorLayout() {
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="flex min-h-0 flex-1 gap-0">
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
                                 <Tabs
                                     value={currentScene?.id ?? ""}
                                     onValueChange={(v) => switchScene(v)}
@@ -1019,23 +1219,28 @@ export default function EditorLayout() {
                                         ))}
                                     </TabsList>
                                 </Tabs>
-                                <div className="ml-auto no-record">
-                                    {screenOn ? (
+                                <div className="ml-auto flex gap-2 no-record">
+                                    <Button
+                                        size="sm"
+                                        variant={
+                                            screenOn ? "outline" : "default"
+                                        }
+                                        onClick={() =>
+                                            void handleShareScreen()
+                                        }
+                                    >
+                                        <MonitorUp />{" "}
+                                        {screenOn
+                                            ? "Ganti screen"
+                                            : "Select screen"}
+                                    </Button>
+                                    {screenOn && (
                                         <Button
                                             size="sm"
                                             variant="outline"
                                             onClick={handleStopScreen}
                                         >
                                             <MonitorOff /> Stop screen
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            size="sm"
-                                            onClick={() =>
-                                                void handleShareScreen()
-                                            }
-                                        >
-                                            <MonitorUp /> Select screen
                                         </Button>
                                     )}
                                 </div>

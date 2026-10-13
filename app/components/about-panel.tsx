@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,14 +19,27 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { STORAGE_KEY, DEFAULT_ABOUT, type AboutData } from "@/app/lib/about";
-import { Pencil } from "lucide-react";
+import { Pencil, Upload, X } from "lucide-react";
+
+const PHOTO_MAX_EDGE = 320;
+
+function initialsOf(name: string) {
+    return name
+        .split(" ")
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase();
+}
 
 export default function AboutPanel({ clean = false }: { clean?: boolean }) {
     const [data, setData] = useState<AboutData>(DEFAULT_ABOUT);
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<AboutData>(DEFAULT_ABOUT);
+    const [photoError, setPhotoError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         try {
@@ -43,6 +56,7 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
 
     const openEditor = () => {
         setDraft(data);
+        setPhotoError(null);
         setEditing(true);
     };
 
@@ -51,17 +65,55 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
         } catch {
-            /* noop */
+            /* quota penuh — data tetap hidup di memori selama tab terbuka */
         }
         setEditing(false);
     };
 
-    const initials = data.name
-        .split(" ")
-        .map((p) => p[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
+    // Resize via canvas supaya foto tidak memenuhi kuota localStorage.
+    const handlePhotoFile = (file: File | undefined) => {
+        if (!file) return;
+        setPhotoError(null);
+        if (!file.type.startsWith("image/")) {
+            setPhotoError("File harus berupa gambar.");
+            return;
+        }
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            const scale = Math.min(
+                1,
+                PHOTO_MAX_EDGE / Math.max(img.width, img.height),
+            );
+            const w = Math.max(1, Math.round(img.width * scale));
+            const h = Math.max(1, Math.round(img.height * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+                setPhotoError("Gagal memproses gambar.");
+                return;
+            }
+            ctx.drawImage(img, 0, 0, w, h);
+            try {
+                setDraft((d) => ({
+                    ...d,
+                    photo: canvas.toDataURL("image/jpeg", 0.85),
+                }));
+            } catch {
+                setPhotoError("Gagal memproses gambar.");
+            }
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            setPhotoError("Gambar tidak bisa dibaca.");
+        };
+        img.src = objectUrl;
+    };
+
+    const initials = initialsOf(data.name);
 
     return (
         <>
@@ -84,6 +136,12 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
                 <CardContent>
                     <div className="flex items-center gap-3">
                         <Avatar size="lg">
+                            {data.photo && (
+                                <AvatarImage
+                                    src={data.photo}
+                                    alt={data.name || "Foto profil"}
+                                />
+                            )}
                             <AvatarFallback>{initials || "-"}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
@@ -109,7 +167,10 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
             <Dialog
                 open={editing}
                 onOpenChange={(open) => {
-                    if (!open) setDraft(data);
+                    if (!open) {
+                        setDraft(data);
+                        setPhotoError(null);
+                    }
                     setEditing(open);
                 }}
             >
@@ -121,6 +182,67 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
+                        <div className="space-y-1.5">
+                            <Label>Foto profil</Label>
+                            <div className="flex items-center gap-3">
+                                <Avatar size="lg">
+                                    {draft.photo && (
+                                        <AvatarImage
+                                            src={draft.photo}
+                                            alt=""
+                                        />
+                                    )}
+                                    <AvatarFallback>
+                                        {initialsOf(draft.name) || "-"}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        handlePhotoFile(
+                                            e.target.files?.[0],
+                                        );
+                                        e.target.value = "";
+                                    }}
+                                />
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        fileInputRef.current?.click()
+                                    }
+                                >
+                                    <Upload /> Unggah foto
+                                </Button>
+                                {draft.photo && (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        aria-label="Hapus foto"
+                                        title="Hapus foto"
+                                        onClick={() =>
+                                            setDraft((d) => ({
+                                                ...d,
+                                                photo: undefined,
+                                            }))
+                                        }
+                                    >
+                                        <X />
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                                JPG/PNG — otomatis dikecilkan supaya ringan.
+                            </p>
+                            {photoError && (
+                                <p className="text-xs text-destructive">
+                                    {photoError}
+                                </p>
+                            )}
+                        </div>
                         <div className="space-y-1.5">
                             <Label htmlFor="about-name">Nama</Label>
                             <Input
@@ -169,6 +291,7 @@ export default function AboutPanel({ clean = false }: { clean?: boolean }) {
                             className="flex-1"
                             onClick={() => {
                                 setDraft(data);
+                                setPhotoError(null);
                                 setEditing(false);
                             }}
                         >

@@ -62,6 +62,15 @@ export interface ColorSource extends Source {
 
 export type SourceType = ScreenSource | WindowSource | CameraSource | ImageSource | ColorSource;
 
+/** Profil perangkat sebuah scene — kamera/mic/mirror yang langsung
+ *  di-apply saat berpindah scene. */
+export interface SceneDevices {
+  cameraOn: boolean;
+  micOn: boolean;
+  micDeviceId: string;
+  mirror: boolean;
+}
+
 export interface Scene {
   id: string;
   name: string;
@@ -70,6 +79,7 @@ export interface Scene {
   background: BackgroundType;
   canvasWidth: number;
   canvasHeight: number;
+  devices?: SceneDevices;
 }
 
 export type SceneId = string;

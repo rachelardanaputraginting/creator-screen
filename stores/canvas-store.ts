@@ -137,6 +137,20 @@ export const useStore = create<CanvasState>()(
     {
       name: "creator-screen-storage",
       storage: createJSONStorage(() => localStorage),
+      // Session & fullscreen adalah state runtime — jangan dipersist.
+      // Kalau ikut tersimpan, tab yang ditutup saat session aktif akan
+      // "bangun" dalam mode presentation (header hilang, edit About
+      // disembunyikan) pada load berikutnya.
+      partialize: (state) => ({
+        source: state.source,
+        canvasWidth: state.canvasWidth,
+        canvasHeight: state.canvasHeight,
+        overlays: state.overlays,
+        selectedOverlayId: state.selectedOverlayId,
+        currentScene: state.currentScene,
+        scenes: state.scenes,
+        background: state.background,
+      }),
     }
   )
 );

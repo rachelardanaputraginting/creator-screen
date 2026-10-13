@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// MP4 (H.264 + AAC) lebih friendly — langsung bisa diputar di semua
+// device. Chrome/Edge/Safari mendukung rekam MP4 via MediaRecorder;
+// Firefox jatuh ke WebM.
 const MIME_FALLBACK = [
+    "video/mp4;codecs=avc1,mp4a.40.2",
+    "video/mp4",
     "video/webm;codecs=vp9",
     "video/webm;codecs=vp8",
     "video/webm",
@@ -16,6 +21,12 @@ function safeSupported(mime: string) {
     } catch {
         return false;
     }
+}
+
+type Container = "mp4" | "webm";
+
+function containerOf(mime: string): Container {
+    return mime.startsWith("video/mp4") ? "mp4" : "webm";
 }
 
 interface StageRecorderArgs {
@@ -38,8 +49,8 @@ function pad(n: number) {
     return String(n).padStart(2, "0");
 }
 
-function fileNameFor(date: Date) {
-    return `creator-screen-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.webm`;
+function fileNameFor(date: Date, container: Container) {
+    return `creator-screen-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.${container}`;
 }
 
 export function useStageRecorder({
@@ -109,6 +120,25 @@ export function useStageRecorder({
         }
 
         const ownFullscreen = !document.fullscreenElement;
+        // requestFullscreen HARUS dipanggil sebelum picker getDisplayMedia:
+        // setelah dialog picker, transient user gesture browser (~5 detik)
+        // sudah kedaluwarsa sehingga fullscreen ditolak diam-diam dan
+        // rekaman jadi ukuran window biasa.
+        const enterOwnFullscreen = async () => {
+            if (!ownFullscreen) return;
+            try {
+                await document.documentElement.requestFullscreen();
+            } catch {
+                /* lanjut tanpa fullscreen */
+            }
+        };
+        const leaveOwnFullscreen = () => {
+            if (ownFullscreen && document.fullscreenElement) {
+                void document.exitFullscreen().catch(() => {});
+            }
+        };
+
+        await enterOwnFullscreen();
 
         let shareStream: MediaStream;
         try {
@@ -120,6 +150,7 @@ export function useStageRecorder({
                 surfaceSwitching: "exclude",
             } as DisplayMediaStreamOptions);
         } catch (e) {
+            leaveOwnFullscreen();
             const name =
                 e instanceof DOMException
                     ? e.name
@@ -134,19 +165,15 @@ export function useStageRecorder({
         const [track] = shareStream.getVideoTracks();
         if (!track) {
             shareStream.getTracks().forEach((t) => t.stop());
+            leaveOwnFullscreen();
             setError("Gagal memulai berbagi layar.");
             return;
         }
         if (track.getSettings().displaySurface !== "browser") {
             shareStream.getTracks().forEach((t) => t.stop());
+            leaveOwnFullscreen();
             setError("Pilih Browser Tab ini (tab Creator Screen), bukan Entire Screen/window.");
             return;
-        }
-
-        try {
-            await document.documentElement.requestFullscreen();
-        } catch {
-            /* lanjut tanpa fullscreen */
         }
 
         setError(null);
@@ -160,6 +187,7 @@ export function useStageRecorder({
         const mime = MIME_FALLBACK.find((m) => safeSupported(m));
         if (mime === undefined) {
             shareStream.getTracks().forEach((t) => t.stop());
+            leaveOwnFullscreen();
             setError("Browser tidak mendukung perekaman video.");
             return;
         }
@@ -207,17 +235,23 @@ export function useStageRecorder({
         const recordStream = new MediaStream([track, ...audioTracks]);
 
         const chunks: Blob[] = [];
-        let recorder: MediaRecorder;
-        try {
-            recorder =
-                mime === ""
+        let container: Container = containerOf(mime);
+        const makeRecorder = (mimeType: string): MediaRecorder | null => {
+            try {
+                return mimeType === ""
                     ? new MediaRecorder(recordStream)
                     : new MediaRecorder(recordStream, {
-                          mimeType: mime,
+                          mimeType,
                           videoBitsPerSecond: 8_000_000,
                       });
-        } catch {
+            } catch {
+                return null;
+            }
+        };
+        const recorder = makeRecorder(mime);
+        if (!recorder) {
             void audioCtx?.close().catch(() => {});
+            leaveOwnFullscreen();
             setError("Browser tidak mendukung perekaman video.");
             track.stop();
             return;
@@ -236,10 +270,68 @@ export function useStageRecorder({
         };
         recRef.current = rec;
 
+        // Handler dipasang per-recorder; hanya recorder yang aktif di `rec`
+        // yang boleh menyumbang chunk / finalisasi (penting saat fallback
+        // menukar recorder di tengah jalan).
+        const attachRecorderHandlers = (r: MediaRecorder) => {
+            r.ondataavailable = (e) => {
+                if (rec.recorder === r && e.data && e.data.size > 0)
+                    chunks.push(e.data);
+            };
+            r.onerror = () => {
+                if (rec.recorder !== r || recRef.current !== rec) return;
+                if (!mime.startsWith("video/mp4")) return;
+                // Encoder H.264 Chrome bisa gagal di layar resolusi tinggi
+                // (Retina/200% scaling) — rekam ulang dengan WebM di stream
+                // yang sama. Chunk MP4 yang gagal dibuang supaya tidak
+                // tercampur dengan WebM.
+                chunks.length = 0;
+                container = "webm";
+                setNotice(
+                    "Encoder MP4 gagal di browser ini — rekaman dilanjutkan dengan WebM.",
+                );
+                const fallback =
+                    makeRecorder("video/webm;codecs=vp9,opus") ??
+                    makeRecorder("video/webm");
+                if (!fallback) return;
+                rec.recorder = fallback;
+                attachRecorderHandlers(fallback);
+                try {
+                    fallback.start(250);
+                } catch {
+                    /* noop */
+                }
+            };
+            r.onstop = () => {
+                if (rec.recorder !== r) return;
+                if (rec.audioCtx && rec.audioCtx.state !== "closed") {
+                    void rec.audioCtx.close().catch(() => {});
+                }
+                const active = recRef.current === rec;
+                clearInterval(rec.timer);
+                stopOwnedTracks(rec);
+                if (active) {
+                    const blob = new Blob(chunks, {
+                        type:
+                            container === "mp4" ? "video/mp4" : "video/webm",
+                    });
+                    blobRef.current = blob;
+                    setBlobUrl((prev) => {
+                        if (prev) URL.revokeObjectURL(prev);
+                        return URL.createObjectURL(blob);
+                    });
+                    setFileName(fileNameFor(new Date(), container));
+                    setStatus("idle");
+                    recRef.current = null;
+                }
+            };
+        };
+        attachRecorderHandlers(recorder);
+
         track.onended = () => {
             if (recRef.current === rec) {
                 try {
-                    if (recorder.state !== "inactive") recorder.stop();
+                    if (rec.recorder.state !== "inactive") rec.recorder.stop();
                 } catch {
                     /* noop */
                 }
@@ -248,34 +340,13 @@ export function useStageRecorder({
                 );
             }
         };
-        recorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) chunks.push(e.data);
-        };
-        recorder.onstop = () => {
-            if (rec.audioCtx && rec.audioCtx.state !== "closed") {
-                void rec.audioCtx.close().catch(() => {});
-            }
-            const active = recRef.current === rec;
-            clearInterval(rec.timer);
-            stopOwnedTracks(rec);
-            if (active) {
-                const blob = new Blob(chunks, { type: "video/webm" });
-                blobRef.current = blob;
-                setBlobUrl((prev) => {
-                    if (prev) URL.revokeObjectURL(prev);
-                    return URL.createObjectURL(blob);
-                });
-                setFileName(fileNameFor(new Date()));
-                setStatus("idle");
-                recRef.current = null;
-            }
-        };
 
         try {
             recorder.start(250);
         } catch {
             teardown(rec);
             recRef.current = null;
+            leaveOwnFullscreen();
             setError("Gagal memulai perekaman.");
             return;
         }

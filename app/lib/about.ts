@@ -3,6 +3,8 @@ export interface AboutData {
   role: string;
   bio: string;
   link: string;
+  /** Data URL (JPEG hasil resize) untuk foto profil; opsional. */
+  photo?: string;
 }
 
 export const STORAGE_KEY = "creator-screen-about";
