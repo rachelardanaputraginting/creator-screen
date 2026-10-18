@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <title>Demo konten - use-stage-recorder.ts</title>
+    <style>
+      :root {
+        --ink: oklch(0.19 0.02 250);
+        --ink-2: oklch(0.23 0.02 250);
+        --edge: oklch(0.3 0.018 250);
+        --text: oklch(0.92 0.01 250);
+        --dim: oklch(0.62 0.015 250);
+        --brand: oklch(0.62 0.2 30);
+        --kw: oklch(0.78 0.12 30);
+        --str: oklch(0.82 0.12 150);
+        --com: oklch(0.56 0.02 250);
+        --fn: oklch(0.8 0.09 240);
+        --num: oklch(0.84 0.1 85);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--ink);
+        color: var(--text);
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      .app {
+        display: grid;
+        grid-template-rows: 40px 1fr 26px;
+        height: 100%;
+      }
+      .titlebar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        background: var(--ink-2);
+        border-bottom: 1px solid var(--edge);
+      }
+      .mark {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        background: var(--brand);
+      }
+      .tabs {
+        display: flex;
+        gap: 2px;
+        font-size: 12.5px;
+      }
+      .tab {
+        padding: 5px 12px;
+        border-radius: 6px 6px 0 0;
+        color: var(--dim);
+      }
+      .tab.active {
+        background: var(--ink);
+        color: var(--text);
+      }
+      .body {
+        display: grid;
+        grid-template-columns: 218px 1fr;
+        min-height: 0;
+      }
+      .tree {
+        border-right: 1px solid var(--edge);
+        padding: 12px 10px;
+        font-size: 12.5px;
+        color: var(--dim);
+        line-height: 1.85;
+        overflow: hidden;
+      }
+      .tree .group {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .tree .item {
+        padding-left: 16px;
+      }
+      .tree .item.active {
+        color: var(--text);
+        background: oklch(0.26 0.02 250);
+        border-radius: 4px;
+      }
+      .editor {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        min-height: 0;
+        overflow: hidden;
+        font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+        font-size: 13px;
+        line-height: 1.68;
+      }
+      .gutter {
+        padding: 12px 10px 12px 0;
+        text-align: right;
+        color: oklch(0.45 0.02 250);
+        user-select: none;
+      }
+      .code {
+        padding: 12px 16px;
+        margin: 0;
+        white-space: pre;
+        overflow: hidden;
+      }
+      .kw {
+        color: var(--kw);
+      }
+      .str {
+        color: var(--str);
+      }
+      .com {
+        color: var(--com);
+        font-style: italic;
+      }
+      .fn {
+        color: var(--fn);
+      }
+      .num {
+        color: var(--num);
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 12px;
+        background: var(--ink-2);
+        border-top: 1px solid var(--edge);
+        font-size: 11.5px;
+        color: var(--dim);
+      }
+      .status .right {
+        margin-left: auto;
+        display: flex;
+        gap: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="titlebar">
+        <span class="mark"></span>
+        <div class="tabs">
+          <span class="tab">capture-source-picker.tsx</span>
+          <span class="tab active">use-stage-recorder.ts</span>
+          <span class="tab">main.js</span>
+        </div>
+      </div>
+      <div class="body">
+        <nav class="tree">
+          <div class="group">app</div>
+          <div class="item">components</div>
+          <div class="item">hooks</div>
+          <div class="item active">use-stage-recorder.ts</div>
+          <div class="group">electron</div>
+          <div class="item">main.js</div>
+          <div class="item">capture.js</div>
+          <div class="group">stores</div>
+          <div class="item">canvas-store.ts</div>
+          <div class="group">types</div>
+          <div class="item">scene.ts</div>
+        </nav>
+        <div class="editor">
+          <div class="gutter" id="gutter"></div>
+          <pre class="code" id="code"></pre>
+        </div>
+      </div>
+      <div class="status">
+        <span>TypeScript</span>
+        <span>UTF-8</span>
+        <span>LF</span>
+        <div class="right">
+          <span>main</span>
+          <span>Ln 147, Col 24</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kode di bawah ini disalin apa adanya dari
+         app/hooks/use-stage-recorder.ts di repo ini. -->
+    <script id="snippet" type="text/plain">
+        const ownFullscreen = !document.fullscreenElement;
+        // requestFullscreen HARUS dipanggil sebelum picker getDisplayMedia:
+        // setelah dialog picker, transient user gesture browser (~5 detik)
+        // sudah kedaluwarsa sehingga fullscreen ditolak diam-diam dan
+        // rekaman jadi ukuran window biasa.
+        const enterOwnFullscreen = async () => {
+            if (!ownFullscreen) return;
+            try {
+                await document.documentElement.requestFullscreen();
+            } catch {
+                /* lanjut tanpa fullscreen */
+            }
+        };
+        const leaveOwnFullscreen = () => {
+            if (ownFullscreen && document.fullscreenElement) {
+                void document.exitFullscreen().catch(() => {});
+            }
+        };
+
+        await enterOwnFullscreen();
+
+        window.creatorScreen?.setCapturePurpose("record");
+
+        let shareStream: MediaStream;
+        try {
+            shareStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: false,
+                selfBrowserSurface: "include",
+                preferCurrentTab: true,
+                surfaceSwitching: "exclude",
+            } as DisplayMediaStreamOptions);
+        } catch (e) {
+            leaveOwnFullscreen();
+            const name =
+                e instanceof DOMException
+                    ? e.name
+                    : (e as { name?: string } | null)?.name;
+            if (name === "NotAllowedError" || name === "AbortError") {
+                return;
+            }
+            setError("Gagal memulai berbagi layar.");
+            return;
+        }
+    </script>
+
+    <script>
+      const escapeHtml = (s) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      // One pass, one alternation: strings and comments are matched before
+      // keywords, so a keyword inside a comment never gets its own span (and
+      // the inserted markup can never be re-scanned by a later pass).
+      const TOKENS =
+        /("(?:[^"\\]|\\.)*")|(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(\b(?:const|let|var|await|async|if|else|return|try|catch|new|void|typeof|instanceof|function|class|import|from|export|as)\b)|(\b\d+\b)/g;
+
+      function highlight(line) {
+        return escapeHtml(line).replace(TOKENS, (match, str, comment, kw, num) => {
+          if (str) return `<span class="str">${str}</span>`;
+          if (comment) return `<span class="com">${comment}</span>`;
+          if (kw) return `<span class="kw">${kw}</span>`;
+          return `<span class="num">${num}</span>`;
+        });
+      }
+
+      const raw = document
+        .getElementById("snippet")
+        .textContent.replace(/^\n/, "")
+        .replace(/\s+$/, "");
+      const lines = raw.split("\n");
+
+      // Indentasi sumbernya 8 spasi (di dalam <script>); kurangi 4 supaya
+      // terbaca sebagai kode 4 spasi pada layar.
+      const dedented = lines.map((l) => l.replace(/^ {4}/, ""));
+
+      document.getElementById("code").innerHTML = dedented
+        .map((line) => highlight(line))
+        .join("\n");
+
+      document.getElementById("gutter").textContent = dedented
+        .map((_, i) => String(122 + i))
+        .join("\n");
+    </script>
+  </body>
+</html>
