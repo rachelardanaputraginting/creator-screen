@@ -15,6 +15,7 @@ const { createAppProtocolHandler } = require("./protocol");
 const { serializeSource } = require("./sources");
 const { createCaptureController } = require("./capture");
 const { createDownloadHandler } = require("./download");
+const { isPermissionAllowed } = require("./permissions");
 
 const OUT_DIR = path.join(__dirname, "..", "out");
 const DEV_URL = "http://localhost:3000";
@@ -67,7 +68,7 @@ function installSessionHandlers() {
   const ses = session.defaultSession;
 
   ses.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(permission === "media");
+    callback(isPermissionAllowed(permission));
   });
 
   ses.setDisplayMediaRequestHandler((request, callback) => {
