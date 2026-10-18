@@ -10,4 +10,6 @@ contextBridge.exposeInMainWorld("creatorScreen", {
     return () => ipcRenderer.removeListener("picker:request", listener);
   },
   selectSource: (id) => ipcRenderer.send("picker:select", id),
+  saveRecording: (data, fileName) =>
+    ipcRenderer.invoke("recording:save", { data, fileName }),
 });

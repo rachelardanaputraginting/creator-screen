@@ -7,11 +7,21 @@ export interface CaptureSource {
   thumbnail: string | null;
 }
 
+export interface SaveRecordingResult {
+  saved: boolean;
+  path?: string;
+  canceled?: boolean;
+}
+
 export interface CreatorScreenBridge {
   isElectron: boolean;
   setCapturePurpose: (purpose: CapturePurpose) => void;
   onPickerRequest: (cb: (sources: CaptureSource[]) => void) => () => void;
   selectSource: (id: string) => void;
+  saveRecording: (
+    data: Uint8Array,
+    fileName: string,
+  ) => Promise<SaveRecordingResult>;
 }
 
 declare global {

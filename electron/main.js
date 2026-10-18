@@ -1,4 +1,5 @@
 "use strict";
+const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const {
@@ -14,8 +15,8 @@ const {
 const { createAppProtocolHandler } = require("./protocol");
 const { serializeSource } = require("./sources");
 const { createCaptureController } = require("./capture");
-const { createDownloadHandler } = require("./download");
 const { isPermissionAllowed } = require("./permissions");
+const { createRecordingSaver } = require("./save-recording");
 
 const OUT_DIR = path.join(__dirname, "..", "out");
 const DEV_URL = "http://localhost:3000";
@@ -74,13 +75,29 @@ function installSessionHandlers() {
   ses.setDisplayMediaRequestHandler((request, callback) => {
     captureController.handle(request, callback);
   });
-
-  ses.on("will-download", (_event, item) => handleDownload(item));
 }
 
-const handleDownload = createDownloadHandler({
-  showSaveDialog: (defaultName) =>
-    dialog.showSaveDialogSync(mainWindow, { defaultPath: defaultName }),
+/**
+ * Ask where to save and write the bytes ourselves. Chromium's downloader is
+ * avoided on purpose: it parks `<uuid>.tmp` files in the user's Downloads
+ * folder and only renames them once the save is applied, so cancelling the
+ * dialog (or missing it while the window is fullscreen) strands the temp file
+ * and loses the recording.
+ */
+const saveRecording = createRecordingSaver({
+  showSaveDialog: async (defaultName) => {
+    const ext = path.extname(defaultName).slice(1).toLowerCase();
+    const options = {
+      title: "Simpan rekaman",
+      defaultPath: defaultName,
+      ...(ext ? { filters: [{ name: "Video", extensions: [ext] }] } : {}),
+    };
+    const { canceled, filePath } = mainWindow
+      ? await dialog.showSaveDialog(mainWindow, options)
+      : await dialog.showSaveDialog(options);
+    return canceled ? undefined : filePath;
+  },
+  writeFile: (filePath, data) => fs.promises.writeFile(filePath, data),
 });
 
 function registerIpc() {
@@ -92,6 +109,7 @@ function registerIpc() {
       resolve(id);
     }
   });
+  ipcMain.handle("recording:save", (_event, payload) => saveRecording(payload));
 }
 
 function createWindow() {

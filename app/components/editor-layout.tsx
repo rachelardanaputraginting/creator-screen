@@ -321,14 +321,38 @@ export default function EditorLayout() {
     const statusRef = useRef(recorder.status);
     statusRef.current = recorder.status;
 
-    const downloadRecording = useCallback((url: string, name: string) => {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-    }, []);
+    // Simpan rekaman. Di aplikasi desktop, file ditulis oleh proses utama
+    // (dialog async + fs.writeFile) supaya tidak lewat downloader Chromium —
+    // downloader itu menaruh `<uuid>.tmp` di folder Downloads dan baru
+    // menamainya setelah save diterapkan, jadi dialog yang dibatalkan
+    // meninggalkan file .tmp dan rekaman tidak tersimpan.
+    const downloadRecording = useCallback(
+        async (url: string, name: string) => {
+            const bridge = window.creatorScreen;
+            if (bridge) {
+                try {
+                    const blob = await (await fetch(url)).blob();
+                    await bridge.saveRecording(
+                        new Uint8Array(await blob.arrayBuffer()),
+                        name,
+                    );
+                } catch {
+                    showNotice(
+                        "Gagal menyimpan rekaman ke disk. Coba lagi.",
+                        "Gagal menyimpan",
+                    );
+                }
+                return;
+            }
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        },
+        [showNotice],
+    );
 
     useEffect(() => {
         document.documentElement.dataset.recording = recording
