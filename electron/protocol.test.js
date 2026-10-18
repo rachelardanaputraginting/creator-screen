@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
-const { resolveAppPath } = require("./protocol");
+const { resolveAppPath, createAppProtocolHandler } = require("./protocol");
 
 const OUT = path.resolve("/tmp/out");
 
@@ -35,4 +35,39 @@ test("null byte is rejected", () => {
 
 test("non-string is rejected", () => {
   assert.equal(resolveAppPath(undefined, OUT), null);
+});
+
+test("handler serves a resolvable file through fetchFile", async () => {
+  const handler = createAppProtocolHandler({
+    outDir: OUT,
+    fetchFile: async (filePath) => new Response("body:" + filePath, { status: 200 }),
+  });
+  const res = await handler({ url: "app://bundle/index.html" });
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), "body:" + path.join(OUT, "index.html"));
+});
+
+test("handler returns 404 when the file cannot be read", async () => {
+  const handler = createAppProtocolHandler({
+    outDir: OUT,
+    fetchFile: async () => {
+      throw new Error("net::ERR_FILE_NOT_FOUND");
+    },
+  });
+  const res = await handler({ url: "app://bundle/missing.js" });
+  assert.equal(res.status, 404);
+});
+
+test("handler returns 404 without fetching when the path is rejected", async () => {
+  let called = 0;
+  const handler = createAppProtocolHandler({
+    outDir: OUT,
+    fetchFile: async () => {
+      called += 1;
+      return new Response("x");
+    },
+  });
+  const res = await handler({ url: "app://bundle/a%00b" });
+  assert.equal(res.status, 404);
+  assert.equal(called, 0);
 });

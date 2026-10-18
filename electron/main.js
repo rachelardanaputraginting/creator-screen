@@ -11,7 +11,7 @@ const {
   protocol,
   session,
 } = require("electron");
-const { resolveAppPath } = require("./protocol");
+const { createAppProtocolHandler } = require("./protocol");
 const { serializeSource } = require("./sources");
 const { createCaptureController } = require("./capture");
 const { createDownloadHandler } = require("./download");
@@ -28,12 +28,13 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function registerAppProtocol() {
-  protocol.handle("app", (request) => {
-    const { pathname } = new URL(request.url);
-    const filePath = resolveAppPath(pathname, OUT_DIR);
-    if (!filePath) return new Response("Not found", { status: 404 });
-    return net.fetch(pathToFileURL(filePath).toString());
-  });
+  protocol.handle(
+    "app",
+    createAppProtocolHandler({
+      outDir: OUT_DIR,
+      fetchFile: (filePath) => net.fetch(pathToFileURL(filePath).toString()),
+    }),
+  );
 }
 
 function toPickerSource(source) {

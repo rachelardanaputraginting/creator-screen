@@ -29,4 +29,29 @@ function resolveAppPath(pathname, outDir) {
   return resolved;
 }
 
-module.exports = { resolveAppPath };
+/**
+ * Build the app:// request handler. Always resolves with a Response — a 404,
+ * never a rejected promise — when the path is rejected or the file cannot be
+ * read, so a missing asset degrades to a normal 404.
+ */
+function createAppProtocolHandler({ outDir, fetchFile }) {
+  return async (request) => {
+    let pathname;
+    try {
+      pathname = new URL(request.url).pathname;
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const filePath = resolveAppPath(pathname, outDir);
+    if (!filePath) return new Response("Not found", { status: 404 });
+
+    try {
+      return await fetchFile(filePath);
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+  };
+}
+
+module.exports = { resolveAppPath, createAppProtocolHandler };
