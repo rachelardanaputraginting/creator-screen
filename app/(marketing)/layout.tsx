@@ -4,6 +4,7 @@ export const metadata: Metadata = {
     title: "Creator Screen — Layar bersih, siap direkam",
     description:
         "Aplikasi Windows gratis untuk menyusun layar rekaman: konten utama di tengah, kartu profil dan kamera di sampingnya, empat scene siap pakai, lalu satu tombol untuk merekam satu berkas video.",
+    twitter: { card: "summary_large_image" },
 };
 
 /**

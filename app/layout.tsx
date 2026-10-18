@@ -18,6 +18,9 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
+  // Absolute URLs for link previews: without this, Next falls back to
+  // http://localhost:3000 and no crawler can fetch the preview image.
+  metadataBase: new URL("https://creator.chelution.com"),
   title: "Creator Screen",
   description: "Visual compositor for content creation",
 };
