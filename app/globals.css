@@ -8,7 +8,8 @@
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --font-sans: var(--font-sans);
-    --font-mono: var(--font-geist-mono);
+    --font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo,
+        monospace;
     --font-heading: var(--font-sans);
     --font-display: var(--font-display);
     --color-sidebar-ring: var(--sidebar-ring);

@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Creator Screen - Layar bersih, siap direkam</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --ink: oklch(0.19 0.02 250);
+                --ink-2: oklch(0.26 0.022 250);
+                --ink-soft: oklch(0.42 0.02 250);
+                --paper: oklch(0.972 0.008 90);
+                --paper-2: oklch(0.995 0.005 90);
+                --line: oklch(0.86 0.012 90);
+                --line-dark: oklch(0.32 0.02 250);
+                --accent: oklch(0.62 0.2 30);
+                --accent-ink: oklch(0.5 0.17 28);
+                --muted: oklch(0.52 0.014 250);
+                --muted-paper: oklch(0.72 0.014 90);
+                --display:
+                    "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+                --sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+                --mono:
+                    ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo,
+                    monospace;
+                --r: 14px;
+                --pad: clamp(20px, 5vw, 48px);
+                --maxw: 1140px;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+            html {
+                -webkit-text-size-adjust: 100%;
+            }
+            body {
+                margin: 0;
+                background: var(--paper);
+                color: var(--ink);
+                font-family: var(--sans);
+                font-size: 17px;
+                line-height: 1.65;
+                text-wrap: pretty;
+                -webkit-font-smoothing: antialiased;
+            }
+            h1,
+            h2,
+            h3 {
+                font-family: var(--display);
+                font-weight: 700;
+                letter-spacing: -0.03em;
+                line-height: 1.03;
+                margin: 0;
+                text-wrap: balance;
+            }
+            h1 {
+                font-size: clamp(2.4rem, 6.2vw, 4.3rem);
+            }
+            h2 {
+                font-size: clamp(1.75rem, 3.6vw, 2.7rem);
+            }
+            h3 {
+                font-size: 1.22rem;
+                letter-spacing: -0.02em;
+                line-height: 1.25;
+            }
+            p {
+                margin: 0;
+            }
+            a {
+                color: inherit;
+            }
+            .wrap {
+                width: 100%;
+                max-width: var(--maxw);
+                margin: 0 auto;
+                padding-inline: var(--pad);
+            }
+            .mono {
+                font-family: var(--mono);
+                font-size: 0.72rem;
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+            }
+
+            /* ---------- buttons ---------- */
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                font-family: var(--sans);
+                font-weight: 600;
+                font-size: 0.95rem;
+                padding: 13px 20px;
+                border-radius: 10px;
+                text-decoration: none;
+                border: 1px solid transparent;
+                cursor: pointer;
+                transition:
+                    transform 0.12s ease,
+                    background 0.15s ease;
+            }
+            .btn-solid {
+                background: var(--accent);
+                color: oklch(0.99 0.01 60);
+            }
+            .btn-solid:hover {
+                background: var(--accent-ink);
+            }
+            .btn-quiet {
+                border-color: var(--line-dark);
+                color: var(--paper);
+            }
+            .btn-quiet:hover {
+                background: var(--ink-2);
+            }
+            .btn-ink {
+                background: var(--ink);
+                color: var(--paper);
+            }
+            .btn-ink:hover {
+                background: var(--ink-2);
+            }
+            .btn:active {
+                transform: translateY(1px);
+            }
+
+            /* ---------- nav ---------- */
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 20;
+                background: color-mix(in oklch, var(--ink) 92%, transparent);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid var(--line-dark);
+            }
+            .nav {
+                display: flex;
+                align-items: center;
+                gap: 28px;
+                height: 66px;
+                color: var(--paper);
+            }
+            .brand {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-family: var(--display);
+                font-weight: 700;
+                letter-spacing: -0.02em;
+                font-size: 1.06rem;
+                text-decoration: none;
+                margin-right: auto;
+            }
+            .nav-links {
+                display: flex;
+                gap: 22px;
+                font-size: 0.9rem;
+            }
+            .nav-links a {
+                text-decoration: none;
+                color: var(--muted-paper);
+            }
+            .nav-links a:hover {
+                color: var(--paper);
+            }
+            .nav .btn {
+                padding: 10px 16px;
+                font-size: 0.88rem;
+            }
+
+            /* ---------- hero (the stage) ---------- */
+            .hero {
+                background: var(--ink);
+                color: var(--paper);
+                padding: clamp(56px, 9vw, 104px) 0 clamp(64px, 9vw, 96px);
+                border-bottom: 1px solid var(--line-dark);
+            }
+            .hero-grid {
+                display: grid;
+                grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.12fr);
+                gap: clamp(32px, 5vw, 64px);
+                align-items: center;
+            }
+            .eyebrow {
+                display: inline-flex;
+                align-items: center;
+                gap: 9px;
+                color: var(--muted-paper);
+                margin-bottom: 22px;
+            }
+            .rec-dot {
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                background: var(--accent);
+                box-shadow: 0 0 0 4px
+                    color-mix(in oklch, var(--accent) 22%, transparent);
+            }
+            .hero p.lede {
+                margin-top: 22px;
+                font-size: clamp(1.02rem, 1.5vw, 1.16rem);
+                color: var(--muted-paper);
+                max-width: 46ch;
+            }
+            .hero-cta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+                margin-top: 32px;
+                align-items: center;
+            }
+            .hero-cta .btn-quiet {
+                border-color: color-mix(
+                    in oklch,
+                    var(--paper) 24%,
+                    transparent
+                );
+            }
+            .hero-note {
+                margin-top: 18px;
+                color: var(--muted-paper);
+                font-size: 0.84rem;
+            }
+            .win {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .win svg {
+                width: 15px;
+                height: 15px;
+                opacity: 0.85;
+            }
+
+            /* ---------- honest placeholder frame ---------- */
+            .shot {
+                position: relative;
+                border: 1.5px dashed
+                    color-mix(in oklch, var(--paper) 34%, transparent);
+                border-radius: var(--r);
+                background: var(--ink-2);
+                aspect-ratio: 16 / 9;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                gap: 8px;
+                text-align: center;
+                padding: 18px;
+            }
+            .shot .cap {
+                font-family: var(--mono);
+                font-size: 0.68rem;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: var(--muted-paper);
+            }
+            .shot .what {
+                font-size: 0.86rem;
+                color: var(--paper);
+                opacity: 0.82;
+                max-width: 34ch;
+                line-height: 1.5;
+            }
+            .shot.paper {
+                border-color: var(--line);
+                background: var(--paper-2);
+            }
+            .shot.paper .cap {
+                color: var(--muted);
+            }
+            .shot.paper .what {
+                color: var(--ink-soft);
+                opacity: 0.9;
+            }
+
+            /* ---------- generic sections ---------- */
+            section {
+                padding: clamp(56px, 8vw, 92px) 0;
+            }
+            .sec-head {
+                max-width: 60ch;
+            }
+            .sec-head p {
+                margin-top: 16px;
+                color: var(--ink-soft);
+                font-size: 1.03rem;
+            }
+            .kicker {
+                color: var(--accent-ink);
+                margin-bottom: 14px;
+            }
+            .rule {
+                height: 1px;
+                background: var(--line);
+                border: 0;
+                margin: 0;
+            }
+
+            /* problem */
+            .problem {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 22px;
+                margin-top: 40px;
+            }
+            .pathology {
+                padding: 22px 0 0;
+                border-top: 2px solid var(--ink);
+            }
+            .pathology .n {
+                font-family: var(--mono);
+                font-size: 0.72rem;
+                letter-spacing: 0.14em;
+                color: var(--muted);
+            }
+            .pathology h3 {
+                margin: 10px 0 8px;
+            }
+            .pathology p {
+                color: var(--ink-soft);
+                font-size: 0.96rem;
+            }
+            .pathology.good {
+                border-top-color: var(--accent);
+            }
+
+            /* features */
+            .features {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(288px, 1fr));
+                gap: 1px;
+                background: var(--line);
+                border: 1px solid var(--line);
+                border-radius: var(--r);
+                overflow: hidden;
+                margin-top: 40px;
+            }
+            .feature {
+                background: var(--paper-2);
+                padding: 26px 24px 30px;
+            }
+            .feature .tag {
+                color: var(--accent-ink);
+                margin-bottom: 12px;
+            }
+            .feature h3 {
+                margin-bottom: 8px;
+            }
+            .feature p {
+                color: var(--ink-soft);
+                font-size: 0.95rem;
+            }
+
+            /* steps */
+            .steps {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 28px;
+                margin-top: 40px;
+                counter-reset: step;
+            }
+            .step {
+                position: relative;
+                padding-top: 46px;
+            }
+            .step::before {
+                counter-increment: step;
+                content: "0" counter(step);
+                position: absolute;
+                top: 0;
+                left: 0;
+                font-family: var(--display);
+                font-size: 1.9rem;
+                font-weight: 700;
+                letter-spacing: -0.04em;
+                color: var(--accent);
+            }
+            .step h3 {
+                margin-bottom: 8px;
+            }
+            .step p {
+                color: var(--ink-soft);
+                font-size: 0.95rem;
+            }
+
+            /* gallery */
+            .gallery {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 18px;
+                margin-top: 40px;
+            }
+            .gallery figure {
+                margin: 0;
+            }
+            .gallery figcaption {
+                margin-top: 12px;
+                color: var(--ink-soft);
+                font-size: 0.92rem;
+            }
+            .gallery figcaption b {
+                color: var(--ink);
+                font-weight: 600;
+            }
+
+            /* faq */
+            .faq {
+                margin-top: 40px;
+                border-top: 1px solid var(--line);
+            }
+            details {
+                border-bottom: 1px solid var(--line);
+            }
+            summary {
+                cursor: pointer;
+                list-style: none;
+                padding: 20px 0;
+                font-family: var(--display);
+                font-weight: 600;
+                letter-spacing: -0.015em;
+                font-size: 1.06rem;
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }
+            summary::-webkit-details-marker {
+                display: none;
+            }
+            summary::before {
+                content: "+";
+                font-family: var(--mono);
+                color: var(--accent);
+                font-size: 1rem;
+                width: 14px;
+            }
+            details[open] summary::before {
+                content: "−";
+            }
+            details p {
+                padding: 0 0 22px 28px;
+                color: var(--ink-soft);
+                max-width: 68ch;
+            }
+
+            /* final cta + footer */
+            .final {
+                background: var(--ink);
+                color: var(--paper);
+                border-radius: var(--r);
+                padding: clamp(34px, 5vw, 56px);
+                display: flex;
+                flex-wrap: wrap;
+                gap: 26px;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .final h2 {
+                max-width: 22ch;
+            }
+            .final .hero-note {
+                margin-top: 12px;
+            }
+            footer {
+                padding: 40px 0 56px;
+                color: var(--muted);
+                font-size: 0.88rem;
+            }
+            .foot {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 18px 30px;
+                align-items: center;
+                justify-content: space-between;
+                border-top: 1px solid var(--line);
+                padding-top: 26px;
+            }
+            .foot a {
+                text-decoration: none;
+            }
+            .foot a:hover {
+                color: var(--ink);
+            }
+            .foot-links {
+                display: flex;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+
+            /* mockup badge - remove in the real page */
+            .badge {
+                position: fixed;
+                left: 16px;
+                bottom: 16px;
+                z-index: 50;
+                background: var(--paper-2);
+                color: var(--ink);
+                border: 1.5px dashed var(--accent);
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-family: var(--mono);
+                font-size: 0.66rem;
+                letter-spacing: 0.1em;
+            }
+
+            @media (max-width: 880px) {
+                .hero-grid {
+                    grid-template-columns: 1fr;
+                }
+                .nav-links {
+                    display: none;
+                }
+            }
+            @media (max-width: 620px) {
+                body {
+                    font-size: 16px;
+                }
+                .nav {
+                    gap: 14px;
+                }
+                .nav .btn {
+                    padding: 9px 13px;
+                    font-size: 0.82rem;
+                }
+                .wide-only {
+                    display: none;
+                }
+                .brand {
+                    font-size: 1rem;
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                * {
+                    transition: none !important;
+                    animation: none !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="wrap nav">
+                <a class="brand" href="#">
+                    <svg
+                        width="27"
+                        height="27"
+                        viewBox="0 0 40 40"
+                        aria-hidden="true"
+                    >
+                        <rect
+                            x="2.5"
+                            y="4.5"
+                            width="31"
+                            height="23"
+                            rx="5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3.2"
+                        />
+                        <rect
+                            x="22"
+                            y="17"
+                            width="16"
+                            height="15"
+                            rx="4"
+                            fill="oklch(0.62 0.2 30)"
+                            stroke="oklch(0.19 0.02 250)"
+                            stroke-width="2.6"
+                        />
+                    </svg>
+                    Creator Screen
+                </a>
+                <nav class="nav-links">
+                    <a href="#fitur">Fitur</a>
+                    <a href="#cara-pakai">Cara pakai</a>
+                    <a href="#tangkapan">Tangkapan layar</a>
+                    <a href="#faq">FAQ</a>
+                </nav>
+                <a class="btn btn-solid" href="#download"
+                    >Download<span class="wide-only"> untuk Windows</span></a
+                >
+            </div>
+        </header>
+
+        <main>
+            <!-- ================= HERO ================= -->
+            <div class="hero">
+                <div class="wrap hero-grid">
+                    <div>
+                        <span class="eyebrow mono"
+                            ><span class="rec-dot"></span> Gratis · Windows
+                            10/11</span
+                        >
+                        <h1>Layar bersih,<br />siap direkam.</h1>
+                        <p class="lede">
+                            Creator Screen menaruh konten utama Anda di
+                            belakang, lalu kamera, teks, gambar, dan timer
+                            mengambang di atasnya. Sekali tekan rekam, jadi satu
+                            file MP4.
+                        </p>
+                        <div class="hero-cta">
+                            <a class="btn btn-solid" href="#download">
+                                <span class="win">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="currentColor"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="M3 5.6l7.3-1v7.1H3V5.6zm8.5-1.2L21 3v8.7h-9.5V4.4zM3 12.9h7.3v7.1L3 19V12.9zm8.5 0H21V21l-9.5-1.3v-6.8z"
+                                        />
+                                    </svg>
+                                    Download untuk Windows
+                                </span>
+                            </a>
+                            <a class="btn btn-quiet" href="#"
+                                >Coba di browser</a
+                            >
+                        </div>
+                        <p class="hero-note">
+                            Tanpa akun, tanpa langganan. Rekaman langsung
+                            tersimpan sebagai MP4 di folder pilihan Anda.
+                        </p>
+                    </div>
+
+                    <div class="shot">
+                        <span class="cap">Tangkapan layar aplikasi · 16:9</span>
+                        <span class="what"
+                            >Mode editor: sumber konten di belakang, overlay
+                            kamera di pojok, judul dan timer mengambang.</span
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= PROBLEM ================= -->
+            <section>
+                <div class="wrap">
+                    <div class="sec-head">
+                        <p class="kicker mono">Kenapa dibuat</p>
+                        <h2>Rekam tutorial seharusnya tidak dua kali kerja.</h2>
+                        <p>
+                            Cara yang biasa: rekam layar dengan satu aplikasi,
+                            rekam wajah dengan HP, lalu gabungkan semuanya di
+                            editor. Tiga langkah, dua file, satu sesi editing -
+                            untuk sesuatu yang sebenarnya bisa disiapkan sebelum
+                            rekaman dimulai.
+                        </p>
+                    </div>
+                    <div class="problem">
+                        <div class="pathology">
+                            <span class="n">CARA LAMA</span>
+                            <h3>Rekam, rekam lagi, baru edit</h3>
+                            <p>
+                                Layar dan wajah terpisah. Hasilnya digabung
+                                belakangan, dan kalau ada yang salah, mulai dari
+                                awal.
+                            </p>
+                        </div>
+                        <div class="pathology">
+                            <span class="n">AKIBATNYA</span>
+                            <h3>Waktu habis di meja editing</h3>
+                            <p>
+                                Komposisi bukan lagi soal materi, tapi soal
+                                menambal. Judul, timer, dan logo ditempel
+                                setelah rekaman selesai.
+                            </p>
+                        </div>
+                        <div class="pathology good">
+                            <span class="n">DENGAN CREATOR SCREEN</span>
+                            <h3>Satu layar, satu tombol</h3>
+                            <p>
+                                Komposisinya sudah benar sebelum Anda mulai.
+                                Yang terekam adalah apa yang Anda lihat di
+                                layar.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="rule" />
+
+            <!-- ================= FEATURES ================= -->
+            <section id="fitur">
+                <div class="wrap">
+                    <div class="sec-head">
+                        <p class="kicker mono">Fitur</p>
+                        <h2>Yang benar-benar ada di dalam aplikasi.</h2>
+                        <p>
+                            Semua di bawah ini bisa Anda pakai di versi gratis.
+                            Tidak ada fitur yang dikunci.
+                        </p>
+                    </div>
+
+                    <div class="features">
+                        <div class="feature">
+                            <p class="tag mono">Sumber</p>
+                            <h3>Layar, jendela, atau wilayah</h3>
+                            <p>
+                                Ambil seluruh layar, satu jendela aplikasi
+                                tertentu, atau hanya sebagian layar saja.
+                            </p>
+                        </div>
+                        <div class="feature">
+                            <p class="tag mono">Overlay</p>
+                            <h3>Kamera, teks, gambar, timer</h3>
+                            <p>
+                                Semuanya mengambang: geser, ubah ukuran, dan
+                                atur posisinya sesuka Anda. Ada juga tampilan
+                                ketikan tombol.
+                            </p>
+                        </div>
+                        <div class="feature">
+                            <p class="tag mono">Scene</p>
+                            <h3>Tata letak siap pakai</h3>
+                            <p>
+                                Coding, Browser, Terminal, dan Presentasi. Ganti
+                                susunan sekali klik, tanpa menata ulang dari
+                                nol.
+                            </p>
+                        </div>
+                        <div class="feature">
+                            <p class="tag mono">Presentasi</p>
+                            <h3>Mode layar penuh</h3>
+                            <p>
+                                Panel editor hilang, tinggal komposisi bersih di
+                                seluruh layar - siap dilihat audiens atau
+                                direkam.
+                            </p>
+                        </div>
+                        <div class="feature">
+                            <p class="tag mono">Rekam</p>
+                            <h3>Hasil MP4, bukan tempelan</h3>
+                            <p>
+                                Kamera dan layar jadi satu file MP4. Anda yang
+                                menentukan folder simpannya saat menekan Stop.
+                            </p>
+                        </div>
+                        <div class="feature">
+                            <p class="tag mono">Kenyamanan</p>
+                            <h3>Tersimpan otomatis</h3>
+                            <p>
+                                Canvas, scene, dan overlay disimpan di perangkat
+                                Anda. Ada undo/redo dan pintasan keyboard.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= STEPS ================= -->
+            <section
+                id="cara-pakai"
+                style="
+                    background: var(--paper-2);
+                    border-block: 1px solid var(--line);
+                "
+            >
+                <div class="wrap">
+                    <div class="sec-head">
+                        <p class="kicker mono">Cara pakai</p>
+                        <h2>Tiga langkah, lalu rekam.</h2>
+                    </div>
+                    <div class="steps">
+                        <div class="step">
+                            <h3>Pilih sumber</h3>
+                            <p>
+                                Seluruh layar, satu jendela aplikasi, atau
+                                wilayah tertentu. Pilihannya muncul sebagai
+                                daftar dengan pratinjau.
+                            </p>
+                        </div>
+                        <div class="step">
+                            <h3>Atur overlay</h3>
+                            <p>
+                                Taruh kamera di pojok, tambahkan judul, timer,
+                                atau logo. Ukuran dan posisinya bisa diubah
+                                kapan saja.
+                            </p>
+                        </div>
+                        <div class="step">
+                            <h3>Rekam atau presentasi</h3>
+                            <p>
+                                Tekan Record untuk menyimpan MP4, atau masuk
+                                mode presentasi kalau rekamannya dari perangkat
+                                lain.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= GALLERY ================= -->
+            <section id="tangkapan">
+                <div class="wrap">
+                    <div class="sec-head">
+                        <p class="kicker mono">Tangkapan layar</p>
+                        <h2>Ini tampilan aslinya.</h2>
+                        <p>Diambil langsung dari aplikasi, bukan ilustrasi.</p>
+                    </div>
+                    <div class="gallery">
+                        <figure>
+                            <div class="shot paper" style="aspect-ratio: 4 / 3">
+                                <span class="cap">Gambar 1 · 4:3</span
+                                ><span class="what"
+                                    >Editor dengan sumber, kamera, dan
+                                    judul</span
+                                >
+                            </div>
+                            <figcaption>
+                                <b>Editor.</b> Semua panel dalam satu layar:
+                                sumber, layer, dan pengaturan.
+                            </figcaption>
+                        </figure>
+                        <figure>
+                            <div class="shot paper" style="aspect-ratio: 4 / 3">
+                                <span class="cap">Gambar 2 · 4:3</span
+                                ><span class="what"
+                                    >Daftar scene dan overlay</span
+                                >
+                            </div>
+                            <figcaption>
+                                <b>Scene.</b> Ganti susunan tanpa menata ulang.
+                            </figcaption>
+                        </figure>
+                        <figure>
+                            <div class="shot paper" style="aspect-ratio: 4 / 3">
+                                <span class="cap">Gambar 3 · 4:3</span
+                                ><span class="what"
+                                    >Dialog simpan hasil rekaman</span
+                                >
+                            </div>
+                            <figcaption>
+                                <b>Simpan.</b> Anda pilih sendiri folder dan
+                                nama filenya.
+                            </figcaption>
+                        </figure>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="rule" />
+
+            <!-- ================= FAQ ================= -->
+            <section id="faq">
+                <div class="wrap">
+                    <div class="sec-head">
+                        <p class="kicker mono">Pertanyaan</p>
+                        <h2>Yang biasanya ditanyakan.</h2>
+                    </div>
+                    <div class="faq">
+                        <details open>
+                            <summary>Apakah benar-benar gratis?</summary>
+                            <p>
+                                Ya. Tidak ada akun, tidak ada langganan, dan
+                                tidak ada batas jumlah rekaman.
+                            </p>
+                        </details>
+                        <details>
+                            <summary>
+                                Windows versi berapa yang didukung?
+                            </summary>
+                            <p>
+                                Windows 10 dan 11 (64-bit). Versi macOS dan
+                                Linux belum tersedia.
+                            </p>
+                        </details>
+                        <details>
+                            <summary>
+                                Saat dipasang muncul peringatan dari Windows,
+                                kenapa?
+                            </summary>
+                            <p>
+                                Installer-nya belum ditandatangani sertifikat
+                                digital berbayar, jadi Windows menampilkan
+                                peringatan yang sama seperti aplikasi baru pada
+                                umumnya. Klik “More info”, lalu “Run anyway”.
+                            </p>
+                        </details>
+                        <details>
+                            <summary>
+                                Perlu internet atau akun untuk memakainya?
+                            </summary>
+                            <p>
+                                Tidak. Aplikasi berjalan sendiri di komputer
+                                Anda; tidak ada data yang dikirim ke mana pun.
+                            </p>
+                        </details>
+                        <details>
+                            <summary>Rekamannya disimpan di mana?</summary>
+                            <p>
+                                Di folder yang Anda pilih saat menekan Stop,
+                                dalam format MP4. Setelah tersimpan, rekaman
+                                tidak dikirim ke internet.
+                            </p>
+                        </details>
+                        <details>
+                            <summary>Bisa dicoba tanpa instal?</summary>
+                            <p>
+                                Bisa. Versi web bisa dibuka di browser, tetapi
+                                izin merekamnya dibatasi oleh browser. Untuk
+                                merekam jendela aplikasi dan menyimpan file,
+                                pakai versi desktop.
+                            </p>
+                        </details>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= FINAL CTA ================= -->
+            <section id="download">
+                <div class="wrap">
+                    <div class="final">
+                        <div>
+                            <h2>Siap merekam layar yang rapi?</h2>
+                            <p class="hero-note">
+                                Windows 10/11 · Gratis · Tanpa akun
+                            </p>
+                        </div>
+                        <a
+                            class="btn btn-solid"
+                            href="#"
+                            style="font-size: 1rem; padding: 15px 24px"
+                            >Download untuk Windows</a
+                        >
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="wrap foot">
+                <div style="display: flex; align-items: center; gap: 10px">
+                    <svg
+                        width="23"
+                        height="23"
+                        viewBox="0 0 40 40"
+                        aria-hidden="true"
+                    >
+                        <rect
+                            x="2.5"
+                            y="4.5"
+                            width="31"
+                            height="23"
+                            rx="5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3.2"
+                        />
+                        <rect
+                            x="22"
+                            y="17"
+                            width="16"
+                            height="15"
+                            rx="4"
+                            fill="oklch(0.62 0.2 30)"
+                            stroke="oklch(0.972 0.008 90)"
+                            stroke-width="2.6"
+                        />
+                    </svg>
+                    <span>Creator Screen - dibuat oleh Chelution.</span>
+                </div>
+                <div class="foot-links">
+                    <a href="#">creator.chelution.com</a>
+                    <a href="#">Kontak</a>
+                    <a href="#">Privasi</a>
+                </div>
+            </div>
+        </footer>
+
+        <div class="badge">MOCKUP · bukan halaman final</div>
+    </body>
+</html>
