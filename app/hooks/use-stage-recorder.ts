@@ -140,6 +140,8 @@ export function useStageRecorder({
 
         await enterOwnFullscreen();
 
+        window.creatorScreen?.setCapturePurpose("record");
+
         let shareStream: MediaStream;
         try {
             shareStream = await navigator.mediaDevices.getDisplayMedia({
@@ -169,7 +171,10 @@ export function useStageRecorder({
             setError("Gagal memulai berbagi layar.");
             return;
         }
-        if (track.getSettings().displaySurface !== "browser") {
+        if (
+            !window.creatorScreen?.isElectron &&
+            track.getSettings().displaySurface !== "browser"
+        ) {
             shareStream.getTracks().forEach((t) => t.stop());
             leaveOwnFullscreen();
             setError("Pilih Browser Tab ini (tab Creator Screen), bukan Entire Screen/window.");
