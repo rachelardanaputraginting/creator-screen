@@ -1,0 +1,11 @@
+{
+  "viewBox": "0 0 40 40",
+  "frame": { "x": 2.5, "y": 4.5, "width": 31, "height": 23, "rx": 5, "strokeWidth": 3.2 },
+  "card": { "x": 22, "y": 17, "width": 16, "height": 15, "rx": 4, "strokeWidth": 2.6 },
+  "tile": { "size": 40, "rx": 9 },
+  "colors": {
+    "ink": "oklch(0.19 0.02 250)",
+    "paper": "oklch(0.972 0.008 90)",
+    "brand": "oklch(0.62 0.2 30)"
+  }
+}

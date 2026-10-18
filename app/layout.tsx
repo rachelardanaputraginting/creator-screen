@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Manrope } from "next/font/google";
+import { Bricolage_Grotesque, Manrope } from "next/font/google";
 import "./globals.css";
 
 const manrope = Manrope({
   variable: "--font-sans",
   subsets: ["latin"],
+});
+
+// Display face for the marketing page. Bricolage Grotesque is a variable font
+// with an optical-size axis, so `opsz` is requested on top of the default `wght`.
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-display",
+  subsets: ["latin"],
+  axes: ["opsz"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -17,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="id"
-      className={`${manrope.variable} h-full antialiased`}
+      className={`${manrope.variable} ${bricolage.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       {/* No `overflow-hidden` here: the marketing page at `/` scrolls like a
