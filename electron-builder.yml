@@ -1,0 +1,34 @@
+# Packaging config for the Windows desktop app.
+#
+# The renderer is a static export (`out/`) served through the privileged `app://`
+# scheme, so `out/**` has to ship inside the asar. The main process only requires
+# Node builtins, `electron`, and its own local files - no runtime dependency -
+# so `node_modules` is excluded outright; without that exclusion the installer
+# balloons by hundreds of megabytes.
+
+appId: com.chelution.creatorscreen
+productName: Creator Screen
+
+directories:
+  output: dist
+
+files:
+  - electron/**/*
+  - out/**/*
+  - package.json
+  - "!**/*.test.js"
+  - "!node_modules/**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Creator Screen
+  artifactName: CreatorScreen-Setup-${version}.${ext}

@@ -11,6 +11,7 @@
     "electron:dev": "electron .",
     "electron:start": "electron . --prod",
     "serve:out": "node scripts/serve-out.mjs out 8901",
+    "dist:win": "pnpm build && electron-builder --win --x64",
     "lint": "eslint"
   },
   "dependencies": {
@@ -39,6 +40,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "electron": "44.9.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
