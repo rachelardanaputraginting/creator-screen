@@ -14,6 +14,7 @@ const {
 const { resolveAppPath } = require("./protocol");
 const { serializeSource } = require("./sources");
 const { createCaptureController } = require("./capture");
+const { createDownloadHandler } = require("./download");
 
 const OUT_DIR = path.join(__dirname, "..", "out");
 const DEV_URL = "http://localhost:3000";
@@ -72,17 +73,13 @@ function installSessionHandlers() {
     captureController.handle(request, callback);
   });
 
-  ses.on("will-download", (_event, item) => {
-    const savePath = dialog.showSaveDialogSync(mainWindow, {
-      defaultPath: item.getFilename(),
-    });
-    if (!savePath) {
-      item.cancel();
-      return;
-    }
-    item.setSavePath(savePath);
-  });
+  ses.on("will-download", (_event, item) => handleDownload(item));
 }
+
+const handleDownload = createDownloadHandler({
+  showSaveDialog: (defaultName) =>
+    dialog.showSaveDialogSync(mainWindow, { defaultPath: defaultName }),
+});
 
 function registerIpc() {
   ipcMain.on("capture:set-purpose", (_event, purpose) => captureController.setPurpose(purpose));
