@@ -135,7 +135,7 @@ function createWindow() {
   if (useDevServer) {
     mainWindow.loadURL(DEV_URL);
   } else {
-    mainWindow.loadURL("app://bundle/index.html");
+    mainWindow.loadURL("app://bundle/app.html");
   }
 }
 
