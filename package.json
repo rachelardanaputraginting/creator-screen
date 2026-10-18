@@ -10,6 +10,7 @@
     "test": "node --test \"electron/**/*.test.js\"",
     "electron:dev": "electron .",
     "electron:start": "electron . --prod",
+    "serve:out": "node scripts/serve-out.mjs out 8901",
     "lint": "eslint"
   },
   "dependencies": {

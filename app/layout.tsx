@@ -16,15 +16,18 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      lang="en"
+      lang="id"
       className={`${manrope.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-full overflow-hidden flex flex-col bg-background text-foreground">
-        {children}
+      {/* No `overflow-hidden` here: the marketing page at `/` scrolls like a
+          normal document. The editor route group supplies its own full-height
+          non-scrolling wrapper instead. */}
+      <body className="min-h-dvh bg-background text-foreground">
         <Script id="theme-init" strategy="beforeInteractive">
           {`try{if(localStorage.getItem("creator-screen-theme")!=="light"){document.documentElement.classList.add("dark")}}catch(e){document.documentElement.classList.add("dark")}`}
         </Script>
+        {children}
       </body>
     </html>
   );
