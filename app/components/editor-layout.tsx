@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import AboutPanel from "./about-panel";
 import TechMarquee from "./tech-marquee";
-import CaptureSourcePicker from "./capture-source-picker";
 import ThemeToggle from "./theme-toggle";
 import MicLevelMeter from "./mic-level-meter";
 import {
@@ -1253,7 +1252,6 @@ export default function EditorLayout() {
                         {sidebar}
                     </div>
                 </main>
-                <CaptureSourcePicker />
             </div>
         </div>
     );

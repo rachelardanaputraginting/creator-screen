@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/stores/canvas-store";
 import OnboardingDialog from "@/app/components/onboarding-dialog";
 import EditorLayout from "@/app/components/editor-layout";
+import CaptureSourcePicker from "@/app/components/capture-source-picker";
 
 export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(true);
@@ -21,13 +22,20 @@ export default function Home() {
     setShowOnboarding(false);
   };
 
-  if (showOnboarding) {
-    return (
-      <div className="flex flex-col h-screen w-full">
-        <OnboardingDialog onComplete={handleOnboardingComplete} />
-      </div>
-    );
-  }
-
-  return <EditorLayout />;
+  return (
+    <>
+      {showOnboarding ? (
+        <div className="flex flex-col h-screen w-full">
+          <OnboardingDialog onComplete={handleOnboardingComplete} />
+        </div>
+      ) : (
+        <EditorLayout />
+      )}
+      {/* The desktop shell can ask for a screen/window picker at any moment —
+          including while the editor is in presentation/fullscreen mode, where
+          the layout branch used to render no picker at all. Mounted once here
+          so the overlay can never be missing. */}
+      <CaptureSourcePicker />
+    </>
+  );
 }
