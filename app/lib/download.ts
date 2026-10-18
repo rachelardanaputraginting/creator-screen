@@ -13,6 +13,6 @@ export interface WindowsInstaller {
 
 export const WINDOWS_INSTALLER: WindowsInstaller = {
     version: "0.1.0",
-    url: "",
-    ready: false,
+    url: "https://github.com/rachelardanaputraginting/creator-screen/releases/download/v0.1.0/CreatorScreen-Setup-0.1.0.exe",
+    ready: true,
 };
