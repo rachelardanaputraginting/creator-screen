@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Electron main/preload are Node CommonJS, not part of the Next/React app.
+    "electron/**",
   ]),
 ]);
 
