@@ -1,4 +1,4 @@
-# Packaging config for the Windows desktop app.
+# Packaging config for the desktop app (Windows installer + Linux AppImage).
 #
 # The renderer is a static export (`out/`) served through the privileged `app://`
 # scheme, so `out/**` has to ship inside the asar. The main process only requires
@@ -8,6 +8,8 @@
 
 appId: com.chelution.creatorscreen
 productName: Creator Screen
+compression: maximum
+afterPack: scripts/afterpack-strip.cjs
 
 directories:
   output: dist
@@ -32,3 +34,16 @@ nsis:
   createDesktopShortcut: true
   shortcutName: Creator Screen
   artifactName: CreatorScreen-Setup-${version}.${ext}
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: assets/icon.png
+  category: Video
+  synopsis: Screen recorder and stream overlay
+  description: >-
+    Creator Screen captures your screen and camera, mixes them into one
+    composition and records the result in HD.
+  artifactName: CreatorScreen-${version}.${ext}

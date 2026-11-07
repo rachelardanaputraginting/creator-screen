@@ -145,7 +145,11 @@ export function useStageRecorder({
         let shareStream: MediaStream;
         try {
             shareStream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
+                video: {
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    frameRate: { ideal: 30 },
+                },
                 audio: false,
                 selfBrowserSurface: "include",
                 preferCurrentTab: true,

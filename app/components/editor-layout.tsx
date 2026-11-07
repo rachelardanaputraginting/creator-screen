@@ -182,6 +182,8 @@ export default function EditorLayout() {
     const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedMicId, setSelectedMicId] = useState("");
     const [mirror, setMirror] = useState(true);
+    const stallOverlayRef = useRef<HTMLDivElement | null>(null);
+    const whiteDismissedRef = useRef(false);
     const screenVideoRef = useRef<HTMLVideoElement | null>(null);
     const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
     const screenStreamRef = useRef<MediaStream | null>(null);
@@ -287,6 +289,50 @@ export default function EditorLayout() {
                 void screenVideoRef.current.play().catch(() => {});
             }
         }
+    }, [screensByScene, currentSceneId]);
+
+    // Di Wayland, jendela sumber yang tertutup jendela lain dikirim portal
+    // sebagai frame putih kosong. Sampel frame video; kalau hampir seluruhnya
+    // putih, tampilkan peringatan (bisa ditutup untuk konten yang putih sah).
+    useEffect(() => {
+        const overlay = stallOverlayRef.current;
+        if (overlay) overlay.style.display = "none";
+        whiteDismissedRef.current = false;
+        const stream = screensByScene[currentSceneId]?.stream;
+        if (!stream) return;
+        const canvas = document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 18;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        let whiteTicks = 0;
+        const timer = window.setInterval(() => {
+            const video = screenVideoRef.current;
+            if (!video || video.readyState < 2 || !video.videoWidth) return;
+            try {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            } catch {
+                return;
+            }
+            const d = ctx.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height,
+            ).data;
+            let white = 0;
+            for (let i = 0; i < d.length; i += 4) {
+                if (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235) white++;
+            }
+            if (white / (d.length / 4) > 0.96) whiteTicks += 1;
+            else whiteTicks = 0;
+            if (overlay)
+                overlay.style.display =
+                    whiteTicks >= 3 && !whiteDismissedRef.current
+                        ? "flex"
+                        : "none";
+        }, 1500);
+        return () => window.clearInterval(timer);
     }, [screensByScene, currentSceneId]);
 
     useEffect(() => {
@@ -442,11 +488,22 @@ export default function EditorLayout() {
                 return;
             }
             window.creatorScreen?.setCapturePurpose("preview");
-            const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: true,
-                systemAudio: "include",
-            } as DisplayMediaStreamOptions);
+            // Linux: jangan minta audio tangkapan layar — loopback sistem
+            // tidak tersedia dan handler Electron akan menolak request-nya.
+            const linux = window.creatorScreen?.platform === "linux";
+            const stream = await navigator.mediaDevices.getDisplayMedia(
+                {
+                    // Tanpa ukuran eksplisit, Wayland + scaling fraksional
+                    // menyerahkan tangkapan di resolusi logis (burik).
+                    video: {
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 },
+                    },
+                    audio: !linux,
+                    systemAudio: "include",
+                } as DisplayMediaStreamOptions,
+            );
             // Hasil picker menjadi screen milik scene AKTIF; stream lama
             // scene ini (kalau ada) dimatikan.
             const entry: SceneScreen = {
@@ -466,10 +523,17 @@ export default function EditorLayout() {
                 return { ...prev, [sceneId]: entry };
             });
             if (!entry.audioOn) {
-                showNotice(
-                    'Saat memilih layar, pilih "Entire Screen" lalu centang "Share system audio" supaya suara komputer ikut terekam. Tanpa itu rekaman hanya berisi suara mic.',
-                    "Suara komputer belum ikut",
-                );
+                if (window.creatorScreen?.platform === "linux") {
+                    showNotice(
+                        "Di Linux suara sistem belum bisa direkam melalui portal, jadi rekaman hanya memuat suara mic.",
+                        "Suara komputer belum ikut",
+                    );
+                } else {
+                    showNotice(
+                        'Saat memilih layar, pilih "Entire Screen" lalu centang "Share system audio" supaya suara komputer ikut terekam. Tanpa itu rekaman hanya berisi suara mic.',
+                        "Suara komputer belum ikut",
+                    );
+                }
             }
             // User menghentikan share lewat UI browser → bersihkan scene ini.
             stream.getVideoTracks()[0]?.addEventListener("ended", () => {
@@ -480,9 +544,12 @@ export default function EditorLayout() {
                     return next;
                 });
             });
-        } catch {
+        } catch (e) {
+            const name =
+                e instanceof DOMException ? ` (${e.name})` : "";
+            console.error("share screen failed", e);
             setMediaError(
-                "Unable to access this screen. Check your system permissions and try again.",
+                `Unable to access this screen${name}. Check your system permissions and try again.`,
             );
         }
     }, [showNotice]);
@@ -498,13 +565,38 @@ export default function EditorLayout() {
                 setMediaError("Camera is not supported in this browser.");
                 return;
             }
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 1280 }, facingMode: "user" },
-                audio: false,
-            });
+            // Laptop sering punya kamera IR (Windows Hello) yang menjadi
+            // default dan hasilnya hitam/abnormal — hindari secara eksplisit.
+            const irName = /infrared|\bir\b|hello/i;
+            const openCam = (deviceId?: string) =>
+                navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        ...(deviceId
+                            ? { deviceId: { exact: deviceId } }
+                            : { facingMode: "user" }),
+                    },
+                    audio: false,
+                });
+            let stream = await openCam();
+            let track = stream.getVideoTracks()[0];
+            if (track && irName.test(track.label)) {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const alt = devices.find(
+                    (d) =>
+                        d.kind === "videoinput" &&
+                        !irName.test(d.label) &&
+                        d.deviceId !== track!.getSettings().deviceId,
+                );
+                if (alt) {
+                    stream.getTracks().forEach((t) => t.stop());
+                    stream = await openCam(alt.deviceId);
+                    track = stream.getVideoTracks()[0];
+                }
+            }
             cameraStreamRef.current = stream;
             setCameraOn(true);
-            stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+            track?.addEventListener("ended", () => {
                 stopCameraTracks();
             });
         } catch {
@@ -752,21 +844,64 @@ export default function EditorLayout() {
 
     const screenPreview = (
         <Card className="w-full min-h-0 flex-1 py-0">
-            <CardContent className="min-h-0 flex-1 p-0">
-                <AspectRatio
-                    ratio={16 / 9}
-                    className="h-full w-full overflow-hidden rounded-md bg-muted"
-                >
-                    {hasScreen ? (
+            <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+                {hasScreen ? (
+                    <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-md bg-muted">
                         <video
                             ref={attachScreenVideo}
                             autoPlay
                             muted
                             playsInline
-                            className="absolute inset-0 h-full w-full object-contain"
+                            className="absolute inset-0 size-full object-contain"
                         />
-                    ) : (
-                        <Empty className="h-full border-0">
+        <div
+            ref={stallOverlayRef}
+            style={{ display: "none" }}
+            className="absolute inset-0 z-10 flex items-center justify-center bg-background/85 p-6 backdrop-blur-sm"
+        >
+                            <div className="flex max-w-md flex-col items-center gap-3 text-center">
+                                <MonitorOff className="size-6 text-muted-foreground" />
+                                <p className="text-sm font-medium">
+                                    Layar sumber tampil putih
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Di Wayland, jendela yang dibagikan
+                                    dikirim sebagai frame putih ketika
+                                    tertutup jendela lain (mis. Creator
+                                    Screen sedang layar penuh). Bagikan
+                                    layar penuh, bukan jendela, lalu
+                                    coba lagi.
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            void handleShareScreen()
+                                        }
+                                    >
+                                        <MonitorUp /> Pilih ulang sumber
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            whiteDismissedRef.current =
+                                                true;
+                                            if (stallOverlayRef.current)
+                                                stallOverlayRef.current.style.display =
+                                                    "none";
+                                        }}
+                                    >
+                                        Ini konten putih memang benar
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex min-h-0 flex-1 overflow-hidden rounded-md bg-muted">
+                        <Empty className="h-full w-full border-0">
                             <EmptyHeader>
                                 <EmptyMedia variant="icon">
                                     <MonitorUp />
@@ -786,8 +921,8 @@ export default function EditorLayout() {
                                 </Button>
                             )}
                         </Empty>
-                    )}
-                </AspectRatio>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -1271,7 +1406,7 @@ export default function EditorLayout() {
                                 </div>
                             </div>
                             {screenPreview}
-                            <TechMarquee />
+                            <TechMarquee editable />
                         </div>
                         {sidebar}
                     </div>

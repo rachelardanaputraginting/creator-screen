@@ -25,9 +25,11 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..", "..");
 const TMP = join(tmpdir(), "creator-screen-brand");
-const SIZES = [16, 24, 32, 48, 64, 128, 256];
+const SIZES = [16, 24, 32, 48, 64, 128, 256, 512];
 
 app.commandLine.appendSwitch("force-color-profile", "srgb");
+// Wayland fractional scaling otherwise rasterises captures at the DPR size.
+app.commandLine.appendSwitch("force-device-scale-factor", "1");
 
 function tileSvg(mark) {
   const { frame, card, tile, colors } = mark;
@@ -84,10 +86,12 @@ async function main() {
   await writeFile(page, tilePage(svg));
 
   const win = new BrowserWindow({
-    width: 256,
-    height: 256,
+    width: 512,
+    height: 512,
     useContentSize: true,
-    show: false,
+    // Hidden windows never get composited under Wayland, which makes
+    // capturePage hang; a visible 512px frameless tile is acceptable here.
+    show: true,
     frame: false,
     transparent: true,
     webPreferences: { backgroundThrottling: false, paintWhenInitiallyHidden: true },
@@ -97,7 +101,7 @@ async function main() {
 
   const rendered = [];
   for (const size of SIZES) {
-    // The window stays at 256px (Windows enforces a minimum window size, so
+    // The window stays one size (Windows enforces a minimum window size, so
     // resizing it produced mis-sized captures for 16/24/32). Instead the tile is
     // drawn at the target size and the capture is cropped to it, which keeps
     // every size rasterised natively instead of downscaled from 256.
@@ -124,9 +128,10 @@ async function main() {
     );
   }
 
-  const largest = rendered.find((entry) => entry.size === 256);
-  if (!largest) throw new Error("missing 256px render");
-  const ico = buildIco(rendered);
+  const largest = rendered.find((entry) => entry.size === 512);
+  if (!largest) throw new Error("missing 512px render");
+  // .ico directory bytes only encode up to 256px.
+  const ico = buildIco(rendered.filter((entry) => entry.size <= 256));
 
   await mkdir(join(ROOT, "assets"), { recursive: true });
   await writeFile(join(ROOT, "app/icon.svg"), `${svg}\n`);

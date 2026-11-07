@@ -12,6 +12,9 @@
     "electron:start": "electron . --prod",
     "serve:out": "node scripts/serve-out.mjs out 8901",
     "dist:win": "pnpm build && electron-builder --win --x64",
+    "dist:linux": "pnpm build && electron-builder --linux AppImage --x64",
+    "dist:arch": "node scripts/dist-arch.mjs",
+    "dist:system": "node scripts/dist-system.mjs",
     "lint": "eslint"
   },
   "dependencies": {

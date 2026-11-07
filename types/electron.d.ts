@@ -15,6 +15,7 @@ export interface SaveRecordingResult {
 
 export interface CreatorScreenBridge {
   isElectron: boolean;
+  platform: NodeJS.Platform;
   setCapturePurpose: (purpose: CapturePurpose) => void;
   onPickerRequest: (cb: (sources: CaptureSource[]) => void) => () => void;
   selectSource: (id: string) => void;

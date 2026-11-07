@@ -208,13 +208,3 @@
 .animate-tech-marquee {
     animation: tech-marquee 30s linear infinite;
 }
-
-.animate-tech-marquee:hover {
-    animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .animate-tech-marquee {
-        animation: none;
-    }
-}

@@ -19,11 +19,19 @@ const { isPermissionAllowed } = require("./permissions");
 const { createRecordingSaver } = require("./save-recording");
 
 const OUT_DIR = path.join(__dirname, "..", "out");
-const DEV_URL = "http://localhost:3000";
+const DEV_URL = "http://localhost:3000/app";
+const PICKER_TIMEOUT_MS = 60_000;
 const useDevServer = !app.isPackaged && !process.argv.includes("--prod");
 
 let mainWindow = null;
 let pendingPicker = null;
+
+// Saat jendela tertutup/minimize (Wayland mengirim event occlusion),
+// Chromium membekukan timer renderer: display durasi rekaman macet dan
+// tab-capture berhenti mengirim frame. Recording harus tetap jalan.
+app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+app.commandLine.appendSwitch("disable-renderer-backgrounding");
+app.commandLine.appendSwitch("disable-background-timer-throttling");
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -45,12 +53,18 @@ function toPickerSource(source) {
 
 function requestPicker(sources) {
   return new Promise((resolve) => {
-    pendingPicker = (id) => resolve(sources.find((s) => s.id === id) || null);
     if (!mainWindow) {
-      pendingPicker = null;
       resolve(null);
       return;
     }
+    const settle = (id) => {
+      clearTimeout(timer);
+      pendingPicker = null;
+      resolve(sources.find((s) => s.id === id) || null);
+    };
+    const timer = setTimeout(settle, PICKER_TIMEOUT_MS);
+    timer.unref?.();
+    pendingPicker = settle;
     mainWindow.webContents.send("picker:request", sources.map(toPickerSource));
   });
 }
@@ -63,6 +77,7 @@ const captureController = createCaptureController({
     }),
   requestPicker,
   getSelfMediaSourceId: () => (mainWindow ? mainWindow.getMediaSourceId() : ""),
+  platform: process.platform,
 });
 
 function installSessionHandlers() {
@@ -125,6 +140,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: false,
     },
   });
 

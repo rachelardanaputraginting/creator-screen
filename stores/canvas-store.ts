@@ -52,6 +52,12 @@ export interface CanvasState {
   // Background
   background: string;
   setBackground: (type: string) => void;
+
+  // Marquee tech stack (null = daftar bawaan)
+  marqueeItems: string[] | null;
+  setMarqueeItems: (items: string[] | null) => void;
+  marqueeDurationSec: number;
+  setMarqueeDurationSec: (seconds: number) => void;
 }
 
 export const useStore = create<CanvasState>()(
@@ -133,6 +139,13 @@ export const useStore = create<CanvasState>()(
       // Background
       background: "solid",
       setBackground: (type) => set({ background: type }),
+
+      // Marquee
+      marqueeItems: null,
+      setMarqueeItems: (items) => set({ marqueeItems: items }),
+      marqueeDurationSec: 30,
+      setMarqueeDurationSec: (seconds) =>
+        set({ marqueeDurationSec: Math.min(120, Math.max(8, seconds || 30)) }),
     }),
     {
       name: "creator-screen-storage",
@@ -150,6 +163,8 @@ export const useStore = create<CanvasState>()(
         currentScene: state.currentScene,
         scenes: state.scenes,
         background: state.background,
+        marqueeItems: state.marqueeItems,
+        marqueeDurationSec: state.marqueeDurationSec,
       }),
     }
   )
