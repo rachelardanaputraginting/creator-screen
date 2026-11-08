@@ -1,0 +1,46 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "Creator Screen — desktop visual compositor"
+authors = ["Chelution"]
+license = ""
+repository = ""
+edition = "2024"
+rust-version = "1.90"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-os = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "fs", "io-util"] }
+uuid = { version = "1", features = ["v4"] }
+
+# GStreamer — capture & recording pipeline (Phases C, D)
+gstreamer = "0.25"
+gstreamer-base = "0.25"
+gstreamer-video = "0.25"
+gstreamer-app = "0.25"
+gstreamer-audio = "0.25"
+
+# xdg-desktop-portal ScreenCast for Wayland screen capture (Phase C)
+ashpd = { version = "0.14", features = ["tokio", "screencast"] }
+
+# PipeWire bindings (if direct API needed beyond GStreamer pipewiresrc)
+pipewire = "0.10"
+
+# Screen/window enumeration for X11 source picker (Phase C)
+xcap = "0.9"

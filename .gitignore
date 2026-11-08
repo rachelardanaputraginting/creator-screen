@@ -23,6 +23,10 @@
 # electron-builder output (installer + unpacked app)
 /dist
 
+# tauri build output
+/src-tauri/target/
+/src-tauri/gen/
+
 # misc
 .DS_Store
 *.pem

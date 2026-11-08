@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useStore } from "@/stores/canvas-store";
+import "@/app/lib/tauri-bridge";
 import OnboardingDialog from "@/app/components/onboarding-dialog";
 import EditorLayout from "@/app/components/editor-layout";
 import CaptureSourcePicker from "@/app/components/capture-source-picker";
