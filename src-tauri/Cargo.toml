@@ -26,7 +26,7 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-os = "2"
 thiserror = "2"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "fs", "io-util"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "fs", "io-util", "time", "macros"] }
 uuid = { version = "1", features = ["v4"] }
 
 # GStreamer — capture & recording pipeline (Phases C, D)
@@ -44,3 +44,7 @@ pipewire = "0.10"
 
 # Screen/window enumeration for X11 source picker (Phase C)
 xcap = "0.9"
+
+[dev-dependencies]
+# `test` powers the mock-runtime IPC test for the chunked recording save.
+tauri = { version = "2.12.5", features = ["test"] }

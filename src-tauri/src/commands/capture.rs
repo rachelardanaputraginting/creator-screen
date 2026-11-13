@@ -1,4 +1,4 @@
-use crate::state::{read_and_reset_purpose, CaptureState, PickerState};
+use crate::state::{CaptureState, PickerState, read_and_reset_purpose};
 
 /// Set the one-shot capture purpose before a `getDisplayMedia` / portal call.
 /// Purpose "record" = self-capture for recording; "preview" = source picker.

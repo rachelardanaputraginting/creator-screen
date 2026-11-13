@@ -1,7 +1,7 @@
+use ashpd::desktop::PersistMode;
 use ashpd::desktop::screencast::{
     CursorMode, Screencast, SelectSourcesOptions, SourceType, Stream,
 };
-use ashpd::desktop::PersistMode;
 use std::os::fd::OwnedFd;
 
 /// Result of starting a screen cast session via the xdg-desktop-portal.
@@ -17,8 +17,8 @@ pub struct ScreenCastSession {
 /// (GNOME/KDE/wlroots) shows its native source picker. On X11 this portal may
 /// not be available — the caller should fall back to `ximagesrc`.
 ///
-/// Mirrors the flow from `electron/capture.js`: the portal dialog has already
-/// chosen what to share, so a single returned source is used directly.
+/// The portal dialog has already chosen what to share, so a single returned
+/// source is used directly.
 pub async fn start_screencast() -> Result<ScreenCastSession, String> {
     let proxy = Screencast::new().await.map_err(|e| e.to_string())?;
     let session = proxy

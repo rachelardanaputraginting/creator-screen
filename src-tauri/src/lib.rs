@@ -2,8 +2,9 @@ mod capture;
 mod commands;
 mod state;
 
+use capture::recorder::RecorderState;
 use capture::sources::CaptureHandle;
-use state::{CaptureState, PickerState};
+use state::{CaptureState, PickerState, RecordingSink};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -58,6 +59,8 @@ pub fn run() {
         .manage(CaptureState::default())
         .manage(PickerState::default())
         .manage(CaptureHandle::default())
+        .manage(RecordingSink::default())
+        .manage(RecorderState::default())
         .invoke_handler(tauri::generate_handler![
             commands::platform::get_platform,
             commands::capture::set_capture_purpose,
@@ -66,6 +69,13 @@ pub fn run() {
             commands::capture::start_screen_preview,
             commands::capture::stop_screen_preview,
             commands::recording::save_recording,
+            commands::recording::save_recording_begin,
+            commands::recording::save_recording_write,
+            commands::recording::save_recording_finish,
+            commands::recording::save_recording_abort,
+            commands::recording::start_screen_recording,
+            commands::recording::stop_screen_recording,
+            commands::recording::save_recording_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

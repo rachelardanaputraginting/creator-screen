@@ -20,7 +20,7 @@
 # production
 /build
 
-# electron-builder output (installer + unpacked app)
+# build / package output
 /dist
 
 # tauri build output

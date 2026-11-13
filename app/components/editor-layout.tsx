@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@/stores/canvas-store";
 import type { Scene, SceneDevices } from "@/types/scene";
 import { BackgroundType } from "@/types/scene";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "cn";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -54,6 +55,18 @@ import {
 } from "@/components/ui/select";
 import { useStageRecorder } from "@/app/hooks/use-stage-recorder";
 import {
+    createEnhancedMicrophoneStream,
+    AudioEnhancerPipeline,
+} from "@/app/lib/audio-enhancer";
+import {
+    Popover,
+    PopoverContent,
+    PopoverDescription,
+    PopoverHeader,
+    PopoverTitle,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import {
     MonitorUp,
     MonitorOff,
     Camera,
@@ -66,12 +79,36 @@ import {
     Square,
     Circle,
     Download,
+    Scaling,
+    PanelRightClose,
+    PanelRightOpen,
+    Sparkles,
+    SlidersHorizontal,
+    Volume2,
+    ShieldCheck,
 } from "lucide-react";
 
 interface SceneScreen {
     stream: MediaStream;
     audioOn: boolean;
     label: string;
+}
+
+/** Human readable file size for the "saved" notice. */
+function formatFileSize(bytes?: number): string {
+    if (!bytes || bytes <= 0) return "";
+    const units = ["B", "KB", "MB", "GB"];
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit += 1;
+    }
+    const rounded =
+        unit === 0 || value >= 10
+            ? Math.round(value)
+            : Math.round(value * 10) / 10;
+    return `${rounded.toLocaleString("id-ID")} ${units[unit]}`;
 }
 
 function defaultScenes(): Scene[] {
@@ -149,6 +186,86 @@ function defaultScenes(): Scene[] {
     ];
 }
 
+interface ScreenVideoPlayerProps {
+    stream: MediaStream | null;
+    screenFit: "contain" | "cover";
+    onVideoRef?: (node: HTMLVideoElement | null) => void;
+}
+
+function ScreenVideoPlayer({
+    stream,
+    screenFit,
+    onVideoRef,
+}: ScreenVideoPlayerProps) {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+
+    const playVideo = useCallback(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        video.muted = true;
+        void video.play().catch(() => {});
+    }, []);
+
+    const setRef = useCallback(
+        (node: HTMLVideoElement | null) => {
+            videoRef.current = node;
+            onVideoRef?.(node);
+            if (node) {
+                node.muted = true;
+                if (stream && node.srcObject !== stream) {
+                    node.srcObject = stream;
+                }
+                void node.play().catch(() => {});
+            }
+        },
+        [stream, onVideoRef],
+    );
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !stream) return;
+
+        video.muted = true;
+        if (video.srcObject !== stream) {
+            video.srcObject = stream;
+        }
+        playVideo();
+
+        const [track] = stream.getVideoTracks();
+        if (!track) return;
+
+        const handleTrackActive = () => playVideo();
+        track.addEventListener("unmute", handleTrackActive);
+
+        return () => {
+            track.removeEventListener("unmute", handleTrackActive);
+        };
+    }, [stream, playVideo]);
+
+    return (
+        <video
+            ref={setRef}
+            autoPlay
+            muted
+            playsInline
+            onLoadedMetadata={(e) => {
+                const el = e.currentTarget;
+                el.muted = true;
+                void el.play().catch(() => {});
+            }}
+            onCanPlay={(e) => {
+                const el = e.currentTarget;
+                el.muted = true;
+                void el.play().catch(() => {});
+            }}
+            className={cn(
+                "absolute inset-0 size-full w-full h-full transition-all duration-200",
+                screenFit === "cover" ? "object-cover" : "object-contain",
+            )}
+        />
+    );
+}
+
 export default function EditorLayout() {
     const {
         currentScene,
@@ -159,6 +276,18 @@ export default function EditorLayout() {
         setIsFullscreen,
         isSessionActive,
         setIsSessionActive,
+        screenFit,
+        setScreenFit,
+        sidebarCollapsed,
+        setSidebarCollapsed,
+        noiseSuppression,
+        setNoiseSuppression,
+        echoCancellation,
+        setEchoCancellation,
+        autoGainControl,
+        setAutoGainControl,
+        voiceEnhancer,
+        setVoiceEnhancer,
     } = useStore();
 
     const [mediaError, setMediaError] = useState<string | null>(null);
@@ -166,14 +295,26 @@ export default function EditorLayout() {
     const [recordNoticeTitle, setRecordNoticeTitle] = useState(
         "Rekaman tersimpan",
     );
-    // Screen aktif PER SCENE — tiap scene memilih source-nya sendiri
-    // lewat picker browser (beberapa share boleh hidup bersamaan).
+    // Screen aktif per scene — jika scene belum memilih screen spesifik,
+    // gunakan screen yang sudah aktif agar tidak hilang saat berpindah scene.
     const [screensByScene, setScreensByScene] = useState<
         Record<string, SceneScreen>
     >({});
     const screensBySceneRef = useRef<Record<string, SceneScreen>>({});
     const currentSceneId = currentScene?.id ?? "";
-    const activeScreen = screensByScene[currentSceneId];
+    const activeScreen = (() => {
+        const byScene = screensByScene[currentSceneId];
+        if (
+            byScene &&
+            byScene.stream.getVideoTracks().some((t) => t.readyState === "live")
+        ) {
+            return byScene;
+        }
+        const anyLive = Object.values(screensByScene).find((s) =>
+            s.stream.getVideoTracks().some((t) => t.readyState === "live"),
+        );
+        return anyLive || byScene || Object.values(screensByScene)[0] || null;
+    })();
     const screenOn = !!activeScreen;
     const screenAudioOn = activeScreen?.audioOn ?? false;
     const [cameraOn, setCameraOn] = useState(false);
@@ -181,6 +322,7 @@ export default function EditorLayout() {
     const [micStream, setMicStream] = useState<MediaStream | null>(null);
     const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedMicId, setSelectedMicId] = useState("");
+    const [micLabel, setMicLabel] = useState("");
     const [mirror, setMirror] = useState(true);
     const stallOverlayRef = useRef<HTMLDivElement | null>(null);
     const whiteDismissedRef = useRef(false);
@@ -189,6 +331,7 @@ export default function EditorLayout() {
     const screenStreamRef = useRef<MediaStream | null>(null);
     const cameraStreamRef = useRef<MediaStream | null>(null);
     const micStreamRef = useRef<MediaStream | null>(null);
+    const audioPipelineRef = useRef<AudioEnhancerPipeline | null>(null);
     const initializedRef = useRef(false);
 
     const showNotice = useCallback((message: string, title?: string) => {
@@ -360,6 +503,7 @@ export default function EditorLayout() {
 
     const recorder = useStageRecorder({
         micStream,
+        micLabel,
         screenStreamRef,
     });
     const recording = recorder.status === "recording";
@@ -368,34 +512,144 @@ export default function EditorLayout() {
     statusRef.current = recorder.status;
 
     // Simpan rekaman. Di aplikasi desktop, file ditulis oleh proses utama
-    // (dialog async + fs.writeFile) supaya tidak lewat downloader Chromium —
-    // downloader itu menaruh `<uuid>.tmp` di folder Downloads dan baru
-    // menamainya setelah save diterapkan, jadi dialog yang dibatalkan
+    // (dialog async + stream byte ke disk) supaya tidak lewat downloader
+    // Chromium — downloader itu menaruh `<uuid>.tmp` di folder Downloads dan
+    // baru menamainya setelah save diterapkan, jadi dialog yang dibatalkan
     // meninggalkan file .tmp dan rekaman tidak tersimpan.
+    //
+    // Satu unduhan pada satu waktu: dialog native yang dobel akan membuat dua
+    // file dari rekaman yang sama.
+    const savingRecordingRef = useRef(false);
     const downloadRecording = useCallback(
         async (url: string, name: string) => {
+            if (savingRecordingRef.current) return;
+
+            const ext = name.endsWith(".mp4") ? "mp4" : "webm";
+            let safeName = name.trim();
+            if (!safeName.endsWith(".mp4") && !safeName.endsWith(".webm")) {
+                safeName = `${safeName}.${ext}`;
+            }
+
             const bridge = window.creatorScreen;
             if (bridge) {
+                savingRecordingRef.current = true;
                 try {
                     const blob = await (await fetch(url)).blob();
-                    await bridge.saveRecording(
-                        new Uint8Array(await blob.arrayBuffer()),
-                        name,
+                    if (blob.size === 0) {
+                        showNotice(
+                            "Hasil rekaman kosong (0 bytes). Pastikan panggung memiliki konten saat merekam.",
+                            "Rekaman Kosong",
+                        );
+                        return;
+                    }
+                    // Name the file after the bytes we actually hold: a stale
+                    // state value must never label WebM data `.mp4` (or the
+                    // reverse), because desktop players refuse such a file.
+                    const blobExt = blob.type.includes("mp4")
+                        ? "mp4"
+                        : blob.type.includes("webm")
+                          ? "webm"
+                          : ext;
+                    const baseName = safeName.replace(/\.(mp4|webm|mkv)$/i, "");
+                    // Pass the Blob itself — the bridge slices it per chunk, so
+                    // the recording is never copied into one giant array.
+                    const res = await bridge.saveRecording(
+                        blob,
+                        `${baseName}.${blobExt}`,
                     );
-                } catch {
+                    if (res?.error) {
+                        showNotice(
+                            `Gagal menyimpan rekaman: ${res.error}`,
+                            "Gagal menyimpan",
+                        );
+                        return;
+                    }
+                    if (res?.saved && res.path) {
+                        const size = formatFileSize(res.bytes);
+                        showNotice(
+                            `Rekaman berhasil disimpan${size ? ` (${size})` : ""} di: ${res.path}`,
+                            "Tersimpan",
+                        );
+                    }
+                } catch (err) {
                     showNotice(
-                        "Gagal menyimpan rekaman ke disk. Coba lagi.",
+                        `Gagal menyimpan rekaman ke disk: ${
+                            err instanceof Error ? err.message : String(err)
+                        }`,
                         "Gagal menyimpan",
                     );
+                } finally {
+                    savingRecordingRef.current = false;
                 }
                 return;
             }
+
+            try {
+                const blob = await (await fetch(url)).blob();
+                if (blob.size === 0) {
+                    showNotice(
+                        "Hasil rekaman kosong (0 bytes). Pastikan panggung memiliki konten saat merekam.",
+                        "Rekaman Kosong",
+                    );
+                    return;
+                }
+            } catch {
+                /* ignore */
+            }
+
             const a = document.createElement("a");
             a.href = url;
-            a.download = name;
+            a.download = safeName;
             document.body.appendChild(a);
             a.click();
             a.remove();
+            showNotice("File rekaman sedang diunduh oleh browser.", "Mengunduh");
+        },
+        [showNotice],
+    );
+
+    // Simpan rekaman native: berkasnya sudah ada di cache aplikasi, jadi
+    // backend hanya menyalinnya ke lokasi yang dipilih pengguna.
+    const saveRecordedFile = useCallback(
+        async (path: string, name: string) => {
+            if (savingRecordingRef.current) return;
+            const bridge = window.creatorScreen;
+            if (!bridge?.saveRecordingFile) {
+                showNotice(
+                    "Penyimpanan berkas rekaman tidak tersedia di build ini.",
+                    "Gagal menyimpan",
+                );
+                return;
+            }
+
+            savingRecordingRef.current = true;
+            try {
+                const res = await bridge.saveRecordingFile(path, name);
+                if (res?.canceled) return;
+                if (res?.error) {
+                    showNotice(
+                        `Gagal menyimpan rekaman: ${res.error}`,
+                        "Gagal menyimpan",
+                    );
+                    return;
+                }
+                if (res?.saved && res.path) {
+                    const size = formatFileSize(res.bytes);
+                    showNotice(
+                        `Rekaman berhasil disimpan${size ? ` (${size})` : ""} di: ${res.path}`,
+                        "Tersimpan",
+                    );
+                }
+            } catch (err) {
+                showNotice(
+                    `Gagal menyimpan rekaman ke disk: ${
+                        err instanceof Error ? err.message : String(err)
+                    }`,
+                    "Gagal menyimpan",
+                );
+            } finally {
+                savingRecordingRef.current = false;
+            }
         },
         [showNotice],
     );
@@ -415,6 +669,15 @@ export default function EditorLayout() {
             downloadRecording(recorder.blobUrl, recorder.fileName);
         }
     }, [recorder.blobUrl, recorder.fileName, downloadRecording]);
+
+    // Rekaman native selesai → langsung tawarkan penyimpanan.
+    const prevFilePath = useRef<string | null>(null);
+    useEffect(() => {
+        if (recorder.filePath && recorder.filePath !== prevFilePath.current) {
+            prevFilePath.current = recorder.filePath;
+            void saveRecordedFile(recorder.filePath, recorder.fileName);
+        }
+    }, [recorder.filePath, recorder.fileName, saveRecordedFile]);
 
     useEffect(() => {
         if (recorder.notice) {
@@ -472,14 +735,17 @@ export default function EditorLayout() {
             );
             cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
             micStreamRef.current?.getTracks().forEach((t) => t.stop());
+            audioPipelineRef.current?.stop();
         },
         [],
     );
 
     const handleShareScreen = useCallback(async () => {
         setMediaError(null);
-        const sceneId = useStore.getState().currentScene?.id;
-        if (!sceneId) return;
+        const sceneId =
+            useStore.getState().currentScene?.id ||
+            useStore.getState().scenes[0]?.id ||
+            "coding";
         try {
             if (!navigator.mediaDevices?.getDisplayMedia) {
                 setMediaError(
@@ -488,22 +754,54 @@ export default function EditorLayout() {
                 return;
             }
             window.creatorScreen?.setCapturePurpose("preview");
-            // Linux: jangan minta audio tangkapan layar — loopback sistem
-            // tidak tersedia dan handler Electron akan menolak request-nya.
-            const linux = window.creatorScreen?.platform === "linux";
-            const stream = await navigator.mediaDevices.getDisplayMedia(
-                {
-                    // Tanpa ukuran eksplisit, Wayland + scaling fraksional
-                    // menyerahkan tangkapan di resolusi logis (burik).
-                    video: {
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                        frameRate: { ideal: 30 },
-                    },
-                    audio: !linux,
-                    systemAudio: "include",
-                } as DisplayMediaStreamOptions,
-            );
+
+            // Deteksi Linux (baik di desktop app Electron/Tauri maupun browser biasa):
+            // Loopback audio sistem tidak didukung di Linux dan memicu OverconstrainedError.
+            const isLinux =
+                window.creatorScreen?.platform === "linux" ||
+                (typeof navigator !== "undefined" &&
+                    /linux/i.test(navigator.userAgent || ""));
+
+            // Di Linux (Wayland/PipeWire), request display media dengan constraint ideal/resolution
+            // menyebabkan Mutter/PipeWire portal hang hingga 5-10 detik menghitung fractional scaling.
+            // Memanggil video: true murni membuka dialog portal SECARA INSTAN (<0.2 detik).
+            let stream: MediaStream;
+            try {
+                if (isLinux) {
+                    // WebKitGTK throws InvalidStateError when an explicit
+                    // audio constraint is passed to getDisplayMedia, so pass
+                    // `{ video: true }` clean without an `audio` key.
+                    stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                    });
+                } else {
+                    try {
+                        stream = await navigator.mediaDevices.getDisplayMedia({
+                            video: true,
+                            audio: true,
+                            systemAudio: "include",
+                        } as DisplayMediaStreamOptions);
+                    } catch {
+                        stream = await navigator.mediaDevices.getDisplayMedia({
+                            video: true,
+                            audio: false,
+                        });
+                    }
+                }
+            } catch (err) {
+                const name =
+                    err instanceof DOMException
+                        ? err.name
+                        : (err as { name?: string } | null)?.name || "";
+                if (name === "NotAllowedError" || name === "AbortError") {
+                    return;
+                }
+                // Fallback attempt jika constraint audio / driver menolak
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                });
+            }
+
             // Hasil picker menjadi screen milik scene AKTIF; stream lama
             // scene ini (kalau ada) dimatikan.
             const entry: SceneScreen = {
@@ -512,6 +810,7 @@ export default function EditorLayout() {
                 label:
                     stream.getVideoTracks()[0]?.label || "Screen capture",
             };
+            screenStreamRef.current = stream;
             setScreensByScene((prev) => {
                 prev[sceneId]?.stream.getTracks().forEach((t) => {
                     try {
@@ -523,7 +822,7 @@ export default function EditorLayout() {
                 return { ...prev, [sceneId]: entry };
             });
             if (!entry.audioOn) {
-                if (window.creatorScreen?.platform === "linux") {
+                if (isLinux) {
                     showNotice(
                         "Di Linux suara sistem belum bisa direkam melalui portal, jadi rekaman hanya memuat suara mic.",
                         "Suara komputer belum ikut",
@@ -546,10 +845,16 @@ export default function EditorLayout() {
             });
         } catch (e) {
             const name =
-                e instanceof DOMException ? ` (${e.name})` : "";
+                e instanceof DOMException
+                    ? e.name
+                    : (e as { name?: string } | null)?.name || "";
+            // User membatalkan dialog pemilihan sumber layar -> bukan error sistem
+            if (name === "NotAllowedError" || name === "AbortError") {
+                return;
+            }
             console.error("share screen failed", e);
             setMediaError(
-                `Unable to access this screen${name}. Check your system permissions and try again.`,
+                `Unable to access this screen${name ? ` (${name})` : ""}. Check your system permissions and try again.`,
             );
         }
     }, [showNotice]);
@@ -647,6 +952,10 @@ export default function EditorLayout() {
                 "Mic berhenti - rekaman parsial tersimpan, silakan download.",
             );
         }
+        if (audioPipelineRef.current) {
+            audioPipelineRef.current.stop();
+            audioPipelineRef.current = null;
+        }
         micStreamRef.current?.getTracks().forEach((t) => t.stop());
         micStreamRef.current = null;
         setMicStream(null);
@@ -672,38 +981,56 @@ export default function EditorLayout() {
         setMediaError(null);
         const wanted = deviceId !== undefined ? deviceId : selectedMicId;
         try {
-            if (!navigator.mediaDevices?.getUserMedia) {
-                setMediaError("Microphone is not supported in this browser.");
-                return;
+            if (audioPipelineRef.current) {
+                audioPipelineRef.current.stop();
+                audioPipelineRef.current = null;
             }
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: false,
-                audio: wanted ? { deviceId: { exact: wanted } } : true,
+            const pipeline = await createEnhancedMicrophoneStream({
+                deviceId: wanted,
+                noiseSuppression,
+                echoCancellation,
+                autoGainControl,
+                voiceEnhancer,
             });
-            attachMic(stream);
+            audioPipelineRef.current = pipeline;
+            setMicLabel(pipeline.activeDeviceLabel);
+            attachMic(pipeline.stream);
             await refreshMicDevices();
         } catch {
             setMediaError(
                 "Unable to access the microphone. Check your system permissions and try again.",
             );
         }
-    }, [selectedMicId, attachMic, refreshMicDevices]);
+    }, [
+        selectedMicId,
+        noiseSuppression,
+        echoCancellation,
+        autoGainControl,
+        voiceEnhancer,
+        attachMic,
+        refreshMicDevices,
+    ]);
 
     const switchMicDevice = useCallback(
         async (deviceId: string) => {
             setSelectedMicId(deviceId);
             if (!micStreamRef.current) return;
             setMediaError(null);
-            micStreamRef.current.getTracks().forEach((t) => t.stop());
-            micStreamRef.current = null;
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: false,
-                    audio: deviceId
-                        ? { deviceId: { exact: deviceId } }
-                        : true,
+                if (audioPipelineRef.current) {
+                    audioPipelineRef.current.stop();
+                    audioPipelineRef.current = null;
+                }
+                const pipeline = await createEnhancedMicrophoneStream({
+                    deviceId,
+                    noiseSuppression,
+                    echoCancellation,
+                    autoGainControl,
+                    voiceEnhancer,
                 });
-                attachMic(stream);
+                audioPipelineRef.current = pipeline;
+                setMicLabel(pipeline.activeDeviceLabel);
+                attachMic(pipeline.stream);
                 await refreshMicDevices();
             } catch {
                 setMicStream(null);
@@ -713,8 +1040,29 @@ export default function EditorLayout() {
                 );
             }
         },
-        [attachMic, refreshMicDevices],
+        [
+            noiseSuppression,
+            echoCancellation,
+            autoGainControl,
+            voiceEnhancer,
+            attachMic,
+            refreshMicDevices,
+        ],
     );
+
+    // Sinkronisasi Voice Enhancer real-time tanpa memutus stream
+    useEffect(() => {
+        audioPipelineRef.current?.setVoiceEnhancer(voiceEnhancer);
+    }, [voiceEnhancer]);
+
+    // Sinkronisasi Audio Constraints (Noise Suppression, Echo Cancellation, AGC) real-time
+    useEffect(() => {
+        void audioPipelineRef.current?.updateConstraints({
+            noiseSuppression,
+            echoCancellation,
+            autoGainControl,
+        });
+    }, [noiseSuppression, echoCancellation, autoGainControl]);
 
     const handleStopMic = useCallback(() => {
         stopMicTracks();
@@ -852,38 +1200,37 @@ export default function EditorLayout() {
                             autoPlay
                             muted
                             playsInline
-                            className="absolute inset-0 size-full object-contain"
+                            className={`absolute inset-0 size-full transition-all duration-200 ${
+                                screenFit === "cover"
+                                    ? "object-cover"
+                                    : "object-contain"
+                            }`}
                         />
-        <div
-            ref={stallOverlayRef}
-            style={{ display: "none" }}
-            className="absolute inset-0 z-10 flex items-center justify-center bg-background/85 p-6 backdrop-blur-sm"
-        >
-                            <div className="flex max-w-md flex-col items-center gap-3 text-center">
-                                <MonitorOff className="size-6 text-muted-foreground" />
-                                <p className="text-sm font-medium">
-                                    Layar sumber tampil putih
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    Di Wayland, jendela yang dibagikan
-                                    dikirim sebagai frame putih ketika
-                                    tertutup jendela lain (mis. Creator
-                                    Screen sedang layar penuh). Bagikan
-                                    layar penuh, bukan jendela, lalu
-                                    coba lagi.
-                                </p>
-                                <div className="flex gap-2">
+                        <div
+                            ref={stallOverlayRef}
+                            style={{ display: "none" }}
+                            className="absolute top-3 right-3 z-20 flex max-w-sm items-center gap-2.5 rounded-lg border border-amber-500/40 bg-background/95 p-3 text-xs shadow-lg backdrop-blur-md"
+                        >
+                            <MonitorOff className="size-5 shrink-0 text-amber-500" />
+                            <div className="flex flex-col gap-1">
+                                <span className="font-semibold text-foreground">
+                                    Layar terdeteksi putih
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                    Di Wayland, jendela yang tertutup jendela lain bisa terkirim sebagai layar putih.
+                                </span>
+                                <div className="flex gap-2 pt-1">
                                     <Button
-                                        size="sm"
+                                        size="xs"
                                         variant="outline"
                                         onClick={() =>
                                             void handleShareScreen()
                                         }
                                     >
-                                        <MonitorUp /> Pilih ulang sumber
+                                        Pilih ulang
                                     </Button>
                                     <Button
-                                        size="sm"
+                                        size="xs"
                                         variant="ghost"
                                         onClick={() => {
                                             whiteDismissedRef.current =
@@ -893,7 +1240,7 @@ export default function EditorLayout() {
                                                     "none";
                                         }}
                                     >
-                                        Ini konten putih memang benar
+                                        Abaikan
                                     </Button>
                                 </div>
                             </div>
@@ -1022,14 +1369,111 @@ export default function EditorLayout() {
                         <span
                             className="max-w-[50%] truncate text-[11px] text-muted-foreground"
                             title={
-                                micStream?.getAudioTracks()[0]?.label || "Mic"
+                                micLabel ||
+                                micStream?.getAudioTracks()[0]?.label ||
+                                "Mic"
                             }
                         >
-                            {micStream?.getAudioTracks()[0]?.label ||
+                            {micLabel ||
+                                micStream?.getAudioTracks()[0]?.label ||
                                 "Mic aktif"}
                         </span>
                     </div>
                 )}
+                {/* Audio Anti-Noise & Voice Processing */}
+                <div className="space-y-2 border-t border-border/60 pt-2">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                            <Sparkles className="size-3.5 text-primary" />
+                            <Label
+                                htmlFor="noise-suppression"
+                                className="cursor-pointer text-xs font-medium"
+                            >
+                                Anti-Noise (Peredam Bising)
+                            </Label>
+                        </div>
+                        <Switch
+                            id="noise-suppression"
+                            checked={noiseSuppression}
+                            onCheckedChange={setNoiseSuppression}
+                        />
+                    </div>
+
+                    <Popover>
+                        <PopoverTrigger
+                            className={cn(
+                                buttonVariants({ variant: "ghost", size: "sm" }),
+                                "h-7 w-full justify-between px-2 text-xs text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            <span className="flex items-center gap-1.5">
+                                <SlidersHorizontal className="size-3.5" />
+                                Filter & EQ Suara
+                            </span>
+                            <Badge variant="outline" className="h-4.5 px-1.5 text-[10px]">
+                                {voiceEnhancer ? "Enhanced" : "Standard"}
+                            </Badge>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 space-y-3" side="left" align="start">
+                            <PopoverHeader>
+                                <PopoverTitle className="flex items-center gap-1.5 text-sm">
+                                    <Volume2 className="size-4 text-primary" />
+                                    Filter & Pengaturan Suara
+                                </PopoverTitle>
+                                <PopoverDescription className="text-xs">
+                                    Sesuaikan pemrosesan audio untuk rekaman suara jernih tanpa dengung.
+                                </PopoverDescription>
+                            </PopoverHeader>
+                            <div className="space-y-3 pt-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col pr-2">
+                                        <Label htmlFor="pop-voice-enhancer" className="cursor-pointer text-xs font-medium">
+                                            Voice Enhancer & Anti-Rumble
+                                        </Label>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            Memotong dengung (&lt;85Hz), meratakan volume &amp; perjelas vokal
+                                        </span>
+                                    </div>
+                                    <Switch
+                                        id="pop-voice-enhancer"
+                                        checked={voiceEnhancer}
+                                        onCheckedChange={setVoiceEnhancer}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col pr-2">
+                                        <Label htmlFor="pop-echo-cancel" className="cursor-pointer text-xs font-medium">
+                                            Echo Cancellation
+                                        </Label>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            Mencegah gema dan feedback suara dari speaker
+                                        </span>
+                                    </div>
+                                    <Switch
+                                        id="pop-echo-cancel"
+                                        checked={echoCancellation}
+                                        onCheckedChange={setEchoCancellation}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col pr-2">
+                                        <Label htmlFor="pop-auto-gain" className="cursor-pointer text-xs font-medium">
+                                            Auto Gain Control
+                                        </Label>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            Otomatis menyesuaikan dan menstabilkan volume input mic
+                                        </span>
+                                    </div>
+                                    <Switch
+                                        id="pop-auto-gain"
+                                        checked={autoGainControl}
+                                        onCheckedChange={setAutoGainControl}
+                                    />
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </CardContent>
         </Card>
     );
@@ -1090,6 +1534,25 @@ export default function EditorLayout() {
                             Aktifkan mic dulu untuk melihat daftar device.
                         </p>
                     )}
+                    <div className="flex items-center justify-between pt-0.5 text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1 font-medium">
+                            <ShieldCheck
+                                className={`size-3.5 ${
+                                    noiseSuppression
+                                        ? "text-emerald-500"
+                                        : "text-muted-foreground"
+                                }`}
+                            />
+                            {noiseSuppression
+                                ? "Anti-Noise aktif"
+                                : "Anti-Noise nonaktif"}
+                        </span>
+                        {voiceEnhancer && (
+                            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                                Vocal Boost ON
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     {recording ? (
@@ -1111,15 +1574,11 @@ export default function EditorLayout() {
                         <Button
                             size="sm"
                             onClick={() => recorder.start()}
-                            disabled={!cameraOn || !hasScreen}
+                            disabled={!cameraOn && !hasScreen}
                             title={
                                 !cameraOn && !hasScreen
-                                    ? "Aktifkan kamera dan share screen dulu"
-                                    : !cameraOn
-                                      ? "Aktifkan kamera dulu"
-                                      : !hasScreen
-                                        ? "Share screen dulu"
-                                        : "Record HD"
+                                    ? "Aktifkan kamera atau pilih screen untuk merekam"
+                                    : "Record HD"
                             }
                         >
                             <Circle className="fill-current" /> Record HD
@@ -1136,18 +1595,24 @@ export default function EditorLayout() {
                             <Square /> End
                         </Button>
                     )}
-                    {recorder.blobUrl && !recording && (
+                    {(recorder.blobUrl || recorder.filePath) && !recording && (
                         <Button
                             size="sm"
                             variant="outline"
                             className="ml-auto"
-                            onClick={() =>
-                                recorder.blobUrl &&
-                                downloadRecording(
-                                    recorder.blobUrl,
-                                    recorder.fileName,
-                                )
-                            }
+                            onClick={() => {
+                                if (recorder.filePath) {
+                                    void saveRecordedFile(
+                                        recorder.filePath,
+                                        recorder.fileName,
+                                    );
+                                } else if (recorder.blobUrl) {
+                                    void downloadRecording(
+                                        recorder.blobUrl,
+                                        recorder.fileName,
+                                    );
+                                }
+                            }}
                         >
                             <Download /> .{fileExt}
                         </Button>
@@ -1155,14 +1620,8 @@ export default function EditorLayout() {
                 </div>
                 {!recording && (
                     <p className="text-[11px] text-muted-foreground">
-                        {!cameraOn || !hasScreen ? (
-                            <>
-                                {!cameraOn && !hasScreen
-                                    ? "Aktifkan kamera + share screen untuk Record."
-                                    : !cameraOn
-                                      ? "Aktifkan kamera untuk Record."
-                                      : "Share screen dulu untuk Record."}
-                            </>
+                        {!cameraOn && !hasScreen ? (
+                            "Pilih screen atau aktifkan kamera untuk Record."
                         ) : (
                             <>
                                 {currentScene
@@ -1216,13 +1675,69 @@ export default function EditorLayout() {
                                     ))}
                                 </TabsList>
                             </Tabs>
-                            <div className="ml-auto flex gap-2 no-record">
+                            <div className="ml-auto flex flex-wrap items-center gap-2 no-record">
+                                {screenOn && (
+                                    <Button
+                                        size="sm"
+                                        variant={
+                                            screenFit === "cover"
+                                                ? "secondary"
+                                                : "outline"
+                                        }
+                                        onClick={() =>
+                                            setScreenFit(
+                                                screenFit === "cover"
+                                                    ? "contain"
+                                                    : "cover",
+                                            )
+                                        }
+                                        title={
+                                            screenFit === "cover"
+                                                ? "Tampilan Layar: Penuhi Layar (Cover) — Klik untuk Rasio Asli (Fit)"
+                                                : "Tampilan Layar: Rasio Asli (Fit) — Klik untuk Penuhi Layar (Cover)"
+                                        }
+                                    >
+                                        <Scaling className="size-4" />
+                                        <span className="hidden sm:inline">
+                                            {screenFit === "cover"
+                                                ? "Full / Cover"
+                                                : "Fit / Rasio Asli"}
+                                        </span>
+                                    </Button>
+                                )}
+                                <Button
+                                    size="sm"
+                                    variant={
+                                        sidebarCollapsed
+                                            ? "secondary"
+                                            : "outline"
+                                    }
+                                    onClick={() =>
+                                        setSidebarCollapsed(!sidebarCollapsed)
+                                    }
+                                    title={
+                                        sidebarCollapsed
+                                            ? "Buka Sidebar (Kamera & Kontrol)"
+                                            : "Sembunyikan Sidebar (Full View)"
+                                    }
+                                >
+                                    {sidebarCollapsed ? (
+                                        <PanelRightOpen className="size-4" />
+                                    ) : (
+                                        <PanelRightClose className="size-4" />
+                                    )}
+                                    <span className="hidden sm:inline">
+                                        {sidebarCollapsed
+                                            ? "Buka Sidebar"
+                                            : "Full View"}
+                                    </span>
+                                </Button>
                                 <Button
                                     size="sm"
                                     variant={screenOn ? "outline" : "default"}
                                     onClick={() => void handleShareScreen()}
                                 >
-                                    <MonitorUp />{" "}
+                                    <MonitorUp className="size-4" />{" "}
                                     {screenOn ? "Ganti screen" : "Select screen"}
                                 </Button>
                                 {screenOn && (
@@ -1231,7 +1746,7 @@ export default function EditorLayout() {
                                         variant="outline"
                                         onClick={handleStopScreen}
                                     >
-                                        <MonitorOff /> Stop screen
+                                        <MonitorOff className="size-4" /> Stop screen
                                     </Button>
                                 )}
                             </div>
@@ -1239,15 +1754,17 @@ export default function EditorLayout() {
                         {screenPreview}
                         <TechMarquee />
                     </div>
-                    <div className="flex min-h-0 w-[280px] shrink-0 flex-col border-l border-border">
-                        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-                            <AboutPanel clean />
-                            {cameraCard}
+                    {!sidebarCollapsed && (
+                        <div className="flex min-h-0 w-[280px] shrink-0 flex-col border-l border-border">
+                            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+                                <AboutPanel clean />
+                                {cameraCard}
+                            </div>
+                            <div className="shrink-0 border-t border-border p-4">
+                                {controlCard}
+                            </div>
                         </div>
-                        <div className="shrink-0 border-t border-border p-4">
-                            {controlCard}
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
         );
@@ -1379,7 +1896,65 @@ export default function EditorLayout() {
                                         ))}
                                     </TabsList>
                                 </Tabs>
-                                <div className="ml-auto flex gap-2 no-record">
+                                <div className="ml-auto flex flex-wrap items-center gap-2 no-record">
+                                    {screenOn && (
+                                        <Button
+                                            size="sm"
+                                            variant={
+                                                screenFit === "cover"
+                                                    ? "secondary"
+                                                    : "outline"
+                                            }
+                                            onClick={() =>
+                                                setScreenFit(
+                                                    screenFit === "cover"
+                                                        ? "contain"
+                                                        : "cover",
+                                                )
+                                            }
+                                            title={
+                                                screenFit === "cover"
+                                                    ? "Tampilan Layar: Penuhi Layar (Cover) — Klik untuk Rasio Asli (Fit)"
+                                                    : "Tampilan Layar: Rasio Asli (Fit) — Klik untuk Penuhi Layar (Cover)"
+                                            }
+                                        >
+                                            <Scaling className="size-4" />
+                                            <span className="hidden sm:inline">
+                                                {screenFit === "cover"
+                                                    ? "Full / Cover"
+                                                    : "Fit / Rasio Asli"}
+                                            </span>
+                                        </Button>
+                                    )}
+                                    <Button
+                                        size="sm"
+                                        variant={
+                                            sidebarCollapsed
+                                                ? "secondary"
+                                                : "outline"
+                                        }
+                                        onClick={() =>
+                                            setSidebarCollapsed(
+                                                !sidebarCollapsed,
+                                            )
+                                        }
+                                        title={
+                                            sidebarCollapsed
+                                                ? "Buka Sidebar (Kamera & Kontrol)"
+                                                : "Sembunyikan Sidebar (Full View)"
+                                        }
+                                    >
+                                        {sidebarCollapsed ? (
+                                            <PanelRightOpen className="size-4" />
+                                        ) : (
+                                            <PanelRightClose className="size-4" />
+                                        )}
+                                        <span className="hidden sm:inline">
+                                            {sidebarCollapsed
+                                                ? "Buka Sidebar"
+                                                : "Full View"}
+                                        </span>
+                                    </Button>
                                     <Button
                                         size="sm"
                                         variant={
@@ -1389,7 +1964,7 @@ export default function EditorLayout() {
                                             void handleShareScreen()
                                         }
                                     >
-                                        <MonitorUp />{" "}
+                                        <MonitorUp className="size-4" />{" "}
                                         {screenOn
                                             ? "Ganti screen"
                                             : "Select screen"}
@@ -1400,7 +1975,7 @@ export default function EditorLayout() {
                                             variant="outline"
                                             onClick={handleStopScreen}
                                         >
-                                            <MonitorOff /> Stop screen
+                                            <MonitorOff className="size-4" /> Stop screen
                                         </Button>
                                     )}
                                 </div>
@@ -1408,7 +1983,7 @@ export default function EditorLayout() {
                             {screenPreview}
                             <TechMarquee editable />
                         </div>
-                        {sidebar}
+                        {!sidebarCollapsed && sidebar}
                     </div>
                 </main>
             </div>

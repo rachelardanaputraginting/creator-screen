@@ -33,10 +33,7 @@ impl FrameBuffer {
     /// Returns a snapshot of the current frame. The clone is cheap relative to
     /// a JPEG encode, and avoids holding the lock across the protocol response.
     pub fn get(&self) -> Vec<u8> {
-        self.inner
-            .lock()
-            .map(|g| g.clone())
-            .unwrap_or_default()
+        self.inner.lock().map(|g| g.clone()).unwrap_or_default()
     }
 
     #[allow(dead_code)]
@@ -93,9 +90,10 @@ impl PreviewPipeline {
         let frame_buffer = FrameBuffer::new();
         let fb_clone = frame_buffer.clone();
 
-        let appsink = sink.clone().dynamic_cast::<gst_app::AppSink>().map_err(|_| {
-            "sink is not an AppSink".to_string()
-        })?;
+        let appsink = sink
+            .clone()
+            .dynamic_cast::<gst_app::AppSink>()
+            .map_err(|_| "sink is not an AppSink".to_string())?;
         appsink.set_callbacks(
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |sink| {

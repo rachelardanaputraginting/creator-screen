@@ -58,6 +58,24 @@ export interface CanvasState {
   setMarqueeItems: (items: string[] | null) => void;
   marqueeDurationSec: number;
   setMarqueeDurationSec: (seconds: number) => void;
+
+  // Screen display fit ("contain" = rasio asli, "cover" = penuhi layar tanpa batas hitam)
+  screenFit: "contain" | "cover";
+  setScreenFit: (fit: "contain" | "cover") => void;
+
+  // Sidebar visibility
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+
+  // Audio processing
+  noiseSuppression: boolean;
+  setNoiseSuppression: (val: boolean) => void;
+  echoCancellation: boolean;
+  setEchoCancellation: (val: boolean) => void;
+  autoGainControl: boolean;
+  setAutoGainControl: (val: boolean) => void;
+  voiceEnhancer: boolean;
+  setVoiceEnhancer: (val: boolean) => void;
 }
 
 export const useStore = create<CanvasState>()(
@@ -146,6 +164,24 @@ export const useStore = create<CanvasState>()(
       marqueeDurationSec: 30,
       setMarqueeDurationSec: (seconds) =>
         set({ marqueeDurationSec: Math.min(120, Math.max(8, seconds || 30)) }),
+
+      // Screen fit
+      screenFit: "contain",
+      setScreenFit: (fit) => set({ screenFit: fit }),
+
+      // Sidebar visibility
+      sidebarCollapsed: false,
+      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+
+      // Audio processing
+      noiseSuppression: true,
+      setNoiseSuppression: (val) => set({ noiseSuppression: val }),
+      echoCancellation: true,
+      setEchoCancellation: (val) => set({ echoCancellation: val }),
+      autoGainControl: true,
+      setAutoGainControl: (val) => set({ autoGainControl: val }),
+      voiceEnhancer: true,
+      setVoiceEnhancer: (val) => set({ voiceEnhancer: val }),
     }),
     {
       name: "creator-screen-storage",
@@ -165,6 +201,12 @@ export const useStore = create<CanvasState>()(
         background: state.background,
         marqueeItems: state.marqueeItems,
         marqueeDurationSec: state.marqueeDurationSec,
+        screenFit: state.screenFit,
+        sidebarCollapsed: state.sidebarCollapsed,
+        noiseSuppression: state.noiseSuppression,
+        echoCancellation: state.echoCancellation,
+        autoGainControl: state.autoGainControl,
+        voiceEnhancer: state.voiceEnhancer,
       }),
     }
   )
