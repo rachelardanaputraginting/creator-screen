@@ -70,7 +70,12 @@ pub struct RecorderState {
     running: Mutex<Option<RecorderRunning>>,
 }
 
-/// Start recording the source the user picks in the portal dialog.
+/// Start recording the Creator Screen window the user picks in the portal
+/// dialog.
+///
+/// Only windows are offered (never entire screens): recording a monitor makes
+/// the file follow the whole desktop, so switching to another application
+/// changes what the recording shows.
 ///
 /// Returns once frames are actually flowing, so the renderer only shows REC
 /// for a capture that works.
@@ -80,6 +85,7 @@ pub async fn start_recording(
     output: PathBuf,
     with_mic: bool,
     mic_label: Option<String>,
+    noise_suppression: bool,
 ) -> Result<StartOutcome, String> {
     {
         let guard = state
@@ -96,7 +102,16 @@ pub async fn start_recording(
     let (ready_tx, ready_rx) = oneshot::channel::<Result<(), StartFailure>>();
 
     tokio::spawn(async move {
-        let result = run_recording(app, output, with_mic, mic_label, ready_tx, stop_rx).await;
+        let result = run_recording(
+            app,
+            output,
+            with_mic,
+            mic_label,
+            noise_suppression,
+            ready_tx,
+            stop_rx,
+        )
+        .await;
         let _ = done_tx.send(result);
     });
 
@@ -142,6 +157,7 @@ async fn run_recording(
     output: PathBuf,
     with_mic: bool,
     mic_label: Option<String>,
+    noise_suppression: bool,
     ready: oneshot::Sender<Result<(), StartFailure>>,
     stop_rx: oneshot::Receiver<()>,
 ) -> Result<RecordedFile, String> {
@@ -176,12 +192,15 @@ async fn run_recording(
         Err(err) => fail_start!(format!("Gagal membuat sesi berbagi layar: {err}")),
     };
 
+    // Yang direkam adalah stage Creator Screen itu sendiri. Batasi ke WINDOW
+    // saja: kalau user memilih "Entire Screen", file rekaman akan mengikuti
+    // seluruh desktop dan isinya ikut berpindah begitu user pindah aplikasi.
     let select = proxy
         .select_sources(
             &session,
             SelectSourcesOptions::default()
                 .set_cursor_mode(CursorMode::METADATA)
-                .set_sources(SourceType::MONITOR | SourceType::WINDOW)
+                .set_sources(SourceType::WINDOW)
                 .set_multiple(false)
                 .set_persist_mode(PersistMode::DoNot),
         )
@@ -209,8 +228,17 @@ async fn run_recording(
     };
 
     let Some(stream) = streams.streams().first() else {
-        fail_start!("Tidak ada layar atau jendela yang dipilih.".to_string());
+        fail_start!("Tidak ada jendela yang dipilih.".to_string());
     };
+    // Backend portal boleh saja mengabaikan mask di atas; tolak monitor secara
+    // eksplisit supaya rekaman tidak pernah menjadi tangkapan seluruh layar.
+    if stream.source_type() == Some(SourceType::MONITOR) {
+        let _ = session.close().await;
+        fail_start!(
+            "Rekaman harus memakai jendela Creator Screen, bukan seluruh layar, supaya isinya tidak ikut berpindah saat kamu ganti aplikasi."
+                .to_string()
+        );
+    }
     let node_id = stream.pipe_wire_node_id();
 
     let fd = match proxy
@@ -226,7 +254,14 @@ async fn run_recording(
     // runtime. The OwnedFd stays here for as long as the pipeline runs.
     let destination = output.clone();
     let started = tokio::task::spawn_blocking(move || {
-        start_pipeline(node_id, raw_fd, &destination, with_mic, mic_label.as_deref())
+        start_pipeline(
+            node_id,
+            raw_fd,
+            &destination,
+            with_mic,
+            mic_label.as_deref(),
+            noise_suppression,
+        )
     })
     .await;
 
@@ -372,7 +407,10 @@ fn resolve_mic_source(label: Option<&str>) -> Option<String> {
     None
 }
 
-fn audio_chain(mic_label: Option<&str>) -> Result<Vec<gst::Element>, String> {
+fn audio_chain(
+    mic_label: Option<&str>,
+    noise_suppression: bool,
+) -> Result<Vec<gst::Element>, String> {
     let src = make("pulsesrc", "Sumber mikrofon")?;
     // Capture the device the user actually picked instead of whatever PipeWire
     // currently calls "default" (a headset plugged in mid-session is often not
@@ -405,11 +443,15 @@ fn audio_chain(mic_label: Option<&str>) -> Result<Vec<gst::Element>, String> {
             // output) to cancel against, and enabling it without a probe
             // reference makes the element refuse to start.
             dsp.set_property("echo-cancel", false);
-            dsp.set_property("noise-suppression", true);
-            // Enum property: the Rust bindings can't set it from a bare int,
-            // so set it through the enum nick ("low" | "moderate" | "high").
-            dsp.set_property_from_str("noise-suppression-level", "high");
-            dsp.set_property("gain-control", true);
+            dsp.set_property("noise-suppression", noise_suppression);
+            if noise_suppression {
+                // "low" reduces background noise (fans, hum) without mangling speech
+                // formants, avoiding the hollow, underwater robot distortion.
+                dsp.set_property_from_str("noise-suppression-level", "low");
+            }
+            // Disable AGC: automatic gain control causes loud background hiss during pauses
+            // and aggressive volume pumping / clipping when speaking.
+            dsp.set_property("gain-control", false);
             dsp.set_property("high-pass-filter", true);
             chain.push(dsp);
         }
@@ -428,7 +470,8 @@ fn audio_chain(mic_label: Option<&str>) -> Result<Vec<gst::Element>, String> {
     out_filter.set_property("caps", &out_caps);
 
     let encoder = make("opusenc", "Encoder Opus")?;
-    encoder.set_property("bitrate", 128_000i32);
+    encoder.set_property("bitrate", 192_000i32);
+    encoder.set_property_from_str("bandwidth", "fullband");
 
     chain.extend([convert_out, resample, out_filter, encoder]);
     Ok(chain)
@@ -441,6 +484,7 @@ fn start_pipeline(
     output: &Path,
     with_mic: bool,
     mic_label: Option<&str>,
+    noise_suppression: bool,
 ) -> Result<StartedPipeline, String> {
     gst::init().map_err(|err| format!("GStreamer tidak bisa diinisialisasi: {err}"))?;
 
@@ -495,7 +539,7 @@ fn start_pipeline(
         .map_err(|err| format!("Gagal menghubungkan pengemas ke berkas: {err}"))?;
 
     if with_mic {
-        match audio_chain(mic_label) {
+        match audio_chain(mic_label, noise_suppression) {
             Ok(chain) => {
                 let added = pipeline.add_many(chain.iter()).is_ok()
                     && gst::Element::link_many(chain.iter()).is_ok();

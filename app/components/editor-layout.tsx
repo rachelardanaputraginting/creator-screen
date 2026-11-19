@@ -505,6 +505,7 @@ export default function EditorLayout() {
         micStream,
         micLabel,
         screenStreamRef,
+        noiseSuppression,
     });
     const recording = recorder.status === "recording";
     const fileExt = recorder.fileName.endsWith(".mp4") ? "mp4" : "webm";
@@ -762,44 +763,51 @@ export default function EditorLayout() {
                 (typeof navigator !== "undefined" &&
                     /linux/i.test(navigator.userAgent || ""));
 
+            const isSafari =
+                typeof navigator !== "undefined" &&
+                /^((?!chrome|android).)*safari/i.test(navigator.userAgent || "");
+
             // Di Linux (Wayland/PipeWire), request display media dengan constraint ideal/resolution
             // menyebabkan Mutter/PipeWire portal hang hingga 5-10 detik menghitung fractional scaling.
             // Memanggil video: true murni membuka dialog portal SECARA INSTAN (<0.2 detik).
+            // WebKitGTK dan Safari juga melempar error jika constraint audio disertakan.
+            // PENTING: getDisplayMedia mengonsumsi user gesture pada panggilan pertama.
+            // Jangan pernah mencoba memanggil getDisplayMedia ulang di dalam blok catch
+            // karena browser akan melempar InvalidStateError / NotAllowedError.
             let stream: MediaStream;
             try {
-                if (isLinux) {
-                    // WebKitGTK throws InvalidStateError when an explicit
-                    // audio constraint is passed to getDisplayMedia, so pass
-                    // `{ video: true }` clean without an `audio` key.
+                if (isLinux || isSafari) {
                     stream = await navigator.mediaDevices.getDisplayMedia({
                         video: true,
                     });
                 } else {
-                    try {
-                        stream = await navigator.mediaDevices.getDisplayMedia({
-                            video: true,
-                            audio: true,
-                            systemAudio: "include",
-                        } as DisplayMediaStreamOptions);
-                    } catch {
-                        stream = await navigator.mediaDevices.getDisplayMedia({
-                            video: true,
-                            audio: false,
-                        });
-                    }
+                    stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: true,
+                        systemAudio: "include",
+                    } as DisplayMediaStreamOptions);
                 }
             } catch (err) {
                 const name =
                     err instanceof DOMException
                         ? err.name
                         : (err as { name?: string } | null)?.name || "";
-                if (name === "NotAllowedError" || name === "AbortError") {
+                if (
+                    name === "NotAllowedError" ||
+                    name === "AbortError" ||
+                    name === "SecurityError" ||
+                    name === "PermissionDeniedError" ||
+                    name === "InvalidStateError"
+                ) {
+                    // User membatalkan picker dialog, portal ditutup, atau gesture expired
                     return;
                 }
-                // Fallback attempt jika constraint audio / driver menolak
-                stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true,
-                });
+                const msg =
+                    err instanceof Error ? err.message : String(err || "");
+                setMediaError(
+                    msg ? `Gagal berbagi layar: ${msg}` : "Gagal berbagi layar.",
+                );
+                return;
             }
 
             // Hasil picker menjadi screen milik scene AKTIF; stream lama

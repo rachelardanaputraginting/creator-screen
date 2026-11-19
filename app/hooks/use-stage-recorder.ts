@@ -74,6 +74,7 @@ export interface StageRecorderArgs {
      *  The Web Audio-processed stream's own track label is unreliable. */
     micLabel?: string | null;
     screenStreamRef: React.RefObject<MediaStream | null> | { current: MediaStream | null };
+    noiseSuppression?: boolean;
 }
 
 interface ActiveRecording {
@@ -96,6 +97,7 @@ export function useStageRecorder({
     micStream,
     micLabel,
     screenStreamRef,
+    noiseSuppression,
 }: StageRecorderArgs): {
     status: "idle" | "recording";
     elapsedMs: number;
@@ -204,6 +206,7 @@ export function useStageRecorder({
         const result = await bridge.startScreenRecording!(
             withMic,
             micLabel || liveMicTrack?.label || null,
+            noiseSuppression,
         );
         if (!result.ok) {
             // A dismissed portal dialog is a cancel, not a failure.
@@ -221,7 +224,7 @@ export function useStageRecorder({
         }, 250);
         nativeRef.current = { timer, startedAt };
         setStatus("recording");
-    }, [micStream, micLabel]);
+    }, [micStream, micLabel, noiseSuppression]);
 
     const start = useCallback(async () => {
         if (recRef.current || nativeRef.current) return;
@@ -314,7 +317,7 @@ export function useStageRecorder({
 
         const mime = MIME_FALLBACK.find((m) => safeSupported(m)) ?? "";
 
-        // Kumpulkan audio: suara tab/aplikasi yang direkam + mic presenter + suara source screen aktif
+        // Kumpulkan audio: suara tab/aplikasi yang direkam + mic presenter
         const displayAudioTracks = shareStream
             .getAudioTracks()
             .filter((t) => t.readyState === "live");
@@ -325,12 +328,14 @@ export function useStageRecorder({
             (t) => t.readyState === "live",
         );
 
-        const allAudioSources: MediaStreamTrack[] = [...displayAudioTracks];
-        for (const t of screenAudioTracks) {
-            if (!allAudioSources.some((s) => s.id === t.id)) {
-                allAudioSources.push(t);
-            }
-        }
+        // Utamakan audio display/sistem dari shareStream; jika tidak ada, gunakan screenStreamRef.
+        // Hindari mencampur keduanya sekaligus karena dapat merekam sumber suara yang sama
+        // dengan delay mikro (menghasilkan gema/phasing).
+        const primaryDisplayAudio =
+            displayAudioTracks.length > 0
+                ? displayAudioTracks
+                : screenAudioTracks;
+        const allAudioSources: MediaStreamTrack[] = [...primaryDisplayAudio];
         for (const t of micAudioTracks) {
             if (!allAudioSources.some((s) => s.id === t.id)) {
                 allAudioSources.push(t);
@@ -375,6 +380,7 @@ export function useStageRecorder({
             recorder = new MediaRecorder(combinedStream, {
                 mimeType: mime || undefined,
                 videoBitsPerSecond: 8_000_000,
+                audioBitsPerSecond: 256_000,
             });
         } catch {
             recorder = new MediaRecorder(combinedStream);

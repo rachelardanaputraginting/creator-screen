@@ -239,11 +239,16 @@ function installBridge() {
         startScreenRecording: async (
             withMic: boolean,
             micLabel?: string | null,
+            noiseSuppression?: boolean,
         ): Promise<StartRecordingResult> => {
             try {
                 return await invoke<StartRecordingResult>(
                     "start_screen_recording",
-                    { withMic, micDevice: micLabel ?? null },
+                    {
+                        withMic,
+                        micDevice: micLabel ?? null,
+                        noiseSuppression: noiseSuppression ?? true,
+                    },
                 );
             } catch (err) {
                 return { ok: false, error: errorMessage(err) };

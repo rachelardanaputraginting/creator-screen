@@ -277,7 +277,10 @@ fn recording_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// Start recording the screen/window picked in the portal dialog.
+/// Start recording the Creator Screen window picked in the portal dialog.
+///
+/// Only windows are offered so the file stays on the app window instead of
+/// following the whole desktop when the user switches applications.
 ///
 /// On Linux the backend records natively: WebKitGTK's display-capture frames
 /// cannot be encoded by MediaRecorder here, so capturing in the renderer would
@@ -288,6 +291,7 @@ pub async fn start_screen_recording(
     state: tauri::State<'_, RecorderState>,
     with_mic: bool,
     mic_device: Option<String>,
+    noise_suppression: Option<bool>,
 ) -> Result<StartRecordingResult, String> {
     let dir = recording_dir(&app)?;
     let stamp = std::time::SystemTime::now()
@@ -297,7 +301,16 @@ pub async fn start_screen_recording(
     let output = dir.join(format!("creator-screen-{stamp}.webm"));
     recorder::sweep_old_recordings(&dir, &output);
 
-    match recorder::start_recording(app, &state, output, with_mic, mic_device).await? {
+    match recorder::start_recording(
+        app,
+        &state,
+        output,
+        with_mic,
+        mic_device,
+        noise_suppression.unwrap_or(true),
+    )
+    .await?
+    {
         recorder::StartOutcome::Started => Ok(StartRecordingResult {
             ok: true,
             canceled: false,

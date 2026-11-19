@@ -51,6 +51,7 @@ export interface CreatorScreenBridge {
   startScreenRecording?: (
     withMic: boolean,
     micLabel?: string | null,
+    noiseSuppression?: boolean,
   ) => Promise<StartRecordingResult>;
   stopScreenRecording?: () => Promise<RecordedScreenFile>;
   /** Copy a finished recording to the destination the user picks. */

@@ -176,9 +176,9 @@ export const useStore = create<CanvasState>()(
       // Audio processing
       noiseSuppression: true,
       setNoiseSuppression: (val) => set({ noiseSuppression: val }),
-      echoCancellation: true,
+      echoCancellation: false,
       setEchoCancellation: (val) => set({ echoCancellation: val }),
-      autoGainControl: true,
+      autoGainControl: false,
       setAutoGainControl: (val) => set({ autoGainControl: val }),
       voiceEnhancer: true,
       setVoiceEnhancer: (val) => set({ voiceEnhancer: val }),

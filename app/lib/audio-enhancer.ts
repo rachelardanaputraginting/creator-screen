@@ -156,7 +156,9 @@ export async function createEnhancedMicrophoneStream(
         noiseSuppression: options.noiseSuppression,
         echoCancellation: options.echoCancellation,
         autoGainControl: options.autoGainControl,
-        channelCount: 1,
+        channelCount: { ideal: 1 },
+        sampleRate: { ideal: 48000 },
+        sampleSize: { ideal: 16 },
     };
 
     if (options.deviceId && options.deviceId !== "default") {
@@ -188,26 +190,26 @@ export async function createEnhancedMicrophoneStream(
         const sourceNode = audioCtx.createMediaStreamSource(rawStream);
         const destNode = audioCtx.createMediaStreamDestination();
 
-        // 1. High-pass filter (85 Hz, Q 0.707) — removes low-frequency hum & desk rumble
+        // 1. High-pass filter (80 Hz, Q 0.707) — removes low-frequency desk rumble & AC hum
         const hpFilter = audioCtx.createBiquadFilter();
         hpFilter.type = "highpass";
-        hpFilter.frequency.value = 85;
+        hpFilter.frequency.value = 80;
         hpFilter.Q.value = 0.707;
 
-        // 2. Presence/Clarity filter (3000 Hz, +2.5 dB, Q 1.0) — boosts vocal articulation
+        // 2. Presence/Warmth filter (2800 Hz, +2.0 dB, Q 0.8) — subtle vocal articulation without harsh sibilance
         const clarityFilter = audioCtx.createBiquadFilter();
         clarityFilter.type = "peaking";
-        clarityFilter.frequency.value = 3000;
-        clarityFilter.gain.value = 2.5;
-        clarityFilter.Q.value = 1.0;
+        clarityFilter.frequency.value = 2800;
+        clarityFilter.gain.value = 2.0;
+        clarityFilter.Q.value = 0.8;
 
-        // 3. Dynamics Compressor — tames volume peaks, lifts soft speech
+        // 3. Dynamics Compressor — gentle broadcast compression, preserves natural dynamics
         const compressor = audioCtx.createDynamicsCompressor();
-        compressor.threshold.value = -24;
-        compressor.knee.value = 12;
-        compressor.ratio.value = 4;
-        compressor.attack.value = 0.003;
-        compressor.release.value = 0.25;
+        compressor.threshold.value = -18;
+        compressor.knee.value = 18;
+        compressor.ratio.value = 2.5;
+        compressor.attack.value = 0.01;
+        compressor.release.value = 0.15;
 
         // 4. Enhanced Gain Node (Path A)
         const enhancedGain = audioCtx.createGain();
